@@ -1,4 +1,4 @@
-import { memo, useMemo, useRef } from 'react'
+import { memo, useEffect, useMemo, useRef, useState } from 'react'
 import { View, TouchableOpacity, ScrollView } from 'react-native'
 
 import { Icon } from '@/components/common/Icon'
@@ -6,6 +6,7 @@ import Text from '@/components/common/Text'
 import Badge from '@/components/common/Badge'
 import Button from '@/components/common/Button'
 import Loading from '@/components/common/Loading'
+import Image from '@/components/common/Image'
 import { useTheme } from '@/store/theme/hook'
 import { useActiveListId, useListFetching, useMyList } from '@/store/list/hook'
 import { createStyle } from '@/utils/tools'
@@ -14,6 +15,8 @@ import { setActiveList } from '@/core/list'
 import { type Position } from './ListMenu'
 import { BorderWidths } from '@/theme'
 import { useI18n } from '@/lang'
+import { getListDetail } from '@/core/songlist'
+import { getListExtraMeta, getListExtraMetaSync, saveListExtraMeta } from '@/utils/listMetaCache'
 
 const ListRow = memo(({ item, index, isLast, activeId, onPress, onShowMenu }: {
   item: LX.List.MyListInfo
@@ -28,13 +31,57 @@ const ListRow = memo(({ item, index, isLast, activeId, onPress, onShowMenu }: {
   const fetching = useListFetching(item.id)
   const active = activeId == item.id
 
+  const onlineSource = 'source' in item ? item.source : undefined
+  const sourceListId = 'sourceListId' in item ? item.sourceListId : undefined
+  const isCollectedOnlineList = Boolean(onlineSource && sourceListId)
+
+  const [coverUrl, setCoverUrl] = useState<string | undefined>(() => (
+    isCollectedOnlineList ? getListExtraMetaSync(item.id)?.img : undefined
+  ))
+
+  useEffect(() => {
+    if (!isCollectedOnlineList) {
+      setCoverUrl(undefined)
+      return
+    }
+    let cancelled = false
+    const syncCached = getListExtraMetaSync(item.id)?.img
+    if (syncCached) setCoverUrl(syncCached)
+
+    void getListExtraMeta(item.id).then((cached) => {
+      if (cancelled) return
+      if (cached?.img) {
+        setCoverUrl(cached.img)
+        return
+      }
+      if (onlineSource && sourceListId) {
+        const cleanId = sourceListId.startsWith(`${onlineSource}__`)
+          ? sourceListId.slice(onlineSource.length + 2)
+          : sourceListId
+        void getListDetail(cleanId, onlineSource, 1).then((detail) => {
+          if (cancelled) return
+          const img = detail.info.img
+          const desc = detail.info.desc
+          if (img || desc) {
+            if (img) setCoverUrl(img)
+            void saveListExtraMeta(item.id, { img, desc })
+          }
+        }).catch(() => {})
+      }
+    })
+
+    return () => {
+      cancelled = true
+    }
+  }, [isCollectedOnlineList, item.id, onlineSource, sourceListId])
+
   const iconName = item.id == LIST_IDS.LOVE
     ? 'love'
     : item.id == LIST_IDS.DEFAULT
       ? 'play-outline'
       : 'album'
 
-  const sourceTag = 'source' in item && item.source ? item.source.toUpperCase() : ''
+  const sourceTag = onlineSource ? onlineSource.toUpperCase() : ''
 
   const handleShowMenu = () => {
     if (moreButtonRef.current?.measure) {
@@ -57,9 +104,15 @@ const ListRow = memo(({ item, index, isLast, activeId, onPress, onShowMenu }: {
         activeOpacity={0.65}
         onPress={() => { onPress(item) }}
       >
-        <View style={{ ...styles.iconBadge, backgroundColor: active ? theme['c-primary-alpha-900'] : theme['c-primary-input-background'] }}>
-          <Icon name={iconName} size={16} color={active ? theme['c-primary-font-active'] : theme['c-font-label']} />
-        </View>
+        {isCollectedOnlineList && coverUrl ? (
+          <View style={styles.coverThumbWrap}>
+            <Image url={coverUrl} style={styles.coverThumb} />
+          </View>
+        ) : (
+          <View style={{ ...styles.iconBadge, backgroundColor: active ? theme['c-primary-alpha-900'] : theme['c-primary-input-background'] }}>
+            <Icon name={iconName} size={16} color={active ? theme['c-primary-font-active'] : theme['c-font-label']} />
+          </View>
+        )}
         {fetching ? <Loading color={theme['c-primary-font-active']} style={styles.loading} /> : null}
         <View style={styles.rowTitleWrap}>
           <Text
@@ -245,7 +298,7 @@ const styles = createStyle({
   menuRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    height: 52,
+    height: 54,
     paddingLeft: 14,
     paddingRight: 8,
   },
@@ -256,12 +309,24 @@ const styles = createStyle({
     alignItems: 'center',
   },
   iconBadge: {
-    width: 30,
-    height: 30,
+    width: 34,
+    height: 34,
     borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
+  },
+  coverThumbWrap: {
+    width: 34,
+    height: 34,
+    borderRadius: 8,
+    overflow: 'hidden',
+    marginRight: 12,
+  },
+  coverThumb: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 8,
   },
   loading: {
     marginRight: 6,

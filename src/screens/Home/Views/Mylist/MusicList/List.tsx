@@ -7,6 +7,7 @@ import playerState from '@/store/player/state'
 import { getListPosition, getListPrevSelectId, saveListPosition } from '@/utils/data'
 import { getListMusics, setActiveList, updateListMusicPosition } from '@/core/list'
 import ListItem, { ITEM_HEIGHT } from './ListItem'
+import ListHeader from './ListHeader'
 import { createStyle, getRowInfo } from '@/utils/tools'
 import { usePlayInfo, usePlayMusicInfo } from '@/store/player/hook'
 import type { Position } from './ListMenu'
@@ -74,6 +75,8 @@ const List = forwardRef<ListType, ListProps>(({ onShowMenu, onMuiltSelectMode, o
   const isShowInterval = useSettingValue('list.isShowInterval')
 
   // Drag-to-reorder refs & state
+  const activeListId = useActiveListId()
+  const headerHeightRef = useRef(0)
   const scrollOffsetRef = useRef(0)
   const listHeightRef = useRef(0)
   const dragSessionRef = useRef<DragSession | null>(null)
@@ -264,7 +267,7 @@ const List = forwardRef<ListType, ListProps>(({ onShowMenu, onMuiltSelectMode, o
   const computeTargetIndex = useCallback((ghostTopY: number) => {
     const listLen = currentListRef.current.length
     if (listLen <= 1) return 0
-    const rawIndex = Math.round((ghostTopY + scrollOffsetRef.current) / ITEM_HEIGHT)
+    const rawIndex = Math.round((ghostTopY + scrollOffsetRef.current - headerHeightRef.current) / ITEM_HEIGHT)
     return Math.max(0, Math.min(listLen - 1, rawIndex))
   }, [])
 
@@ -310,7 +313,7 @@ const List = forwardRef<ListType, ListProps>(({ onShowMenu, onMuiltSelectMode, o
     }
 
     Vibration.vibrate(isFromLongPress ? 15 : 10)
-    const rowTop = index * ITEM_HEIGHT - scrollOffsetRef.current
+    const rowTop = headerHeightRef.current + index * ITEM_HEIGHT - scrollOffsetRef.current
     initialRowTopRef.current = rowTop
     hasMovedDuringDragRef.current = !isFromLongPress
     lastDyRef.current = 0
@@ -357,7 +360,7 @@ const List = forwardRef<ListType, ListProps>(({ onShowMenu, onMuiltSelectMode, o
 
     // Gentle auto-scroll near top or bottom edges
     const edgeZone = 48
-    const maxScroll = Math.max(0, currentListRef.current.length * ITEM_HEIGHT - listHeightRef.current)
+    const maxScroll = Math.max(0, headerHeightRef.current + currentListRef.current.length * ITEM_HEIGHT - listHeightRef.current)
     if (nextTop < edgeZone && scrollOffsetRef.current > 0) {
       if (!autoScrollTimerRef.current) {
         autoScrollTimerRef.current = setInterval(() => {
@@ -481,16 +484,23 @@ const List = forwardRef<ListType, ListProps>(({ onShowMenu, onMuiltSelectMode, o
     />
   )
   const getkey: FlatListType['keyExtractor'] = item => item.id
-  const getItemLayout: FlatListType['getItemLayout'] = (data, index) => {
-    return { length: ITEM_HEIGHT, offset: ITEM_HEIGHT * index, index }
-  }
+  const handleHeaderHeightChange = useCallback((h: number) => {
+    headerHeightRef.current = h
+  }, [])
+  const listHeaderComponent = useMemo(() => (
+    <ListHeader
+      listId={activeListId}
+      list={currentList}
+      onHeightChange={handleHeaderHeightChange}
+    />
+  ), [activeListId, currentList, handleHeaderHeightChange])
 
   const dropIndicatorTop = dragSession?.isVisualDragging
     ? Math.max(
         0,
         Math.min(
           listHeightRef.current - 3,
-          (dragSession.targetIndex > dragSession.fromIndex ? dragSession.targetIndex + 1 : dragSession.targetIndex) * ITEM_HEIGHT - scrollOffsetRef.current,
+          headerHeightRef.current + (dragSession.targetIndex > dragSession.fromIndex ? dragSession.targetIndex + 1 : dragSession.targetIndex) * ITEM_HEIGHT - scrollOffsetRef.current,
         ),
       )
     : -1
@@ -509,7 +519,7 @@ const List = forwardRef<ListType, ListProps>(({ onShowMenu, onMuiltSelectMode, o
         initialNumToRender={12}
         renderItem={renderItem}
         keyExtractor={getkey}
-        getItemLayout={getItemLayout}
+        ListHeaderComponent={listHeaderComponent}
         onScroll={handleScroll}
         scrollEventThrottle={16}
       />
