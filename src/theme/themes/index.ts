@@ -1,0 +1,110 @@
+/* eslint-disable @typescript-eslint/no-var-requires */
+import { getUserTheme, saveUserTheme } from '@/utils/data'
+import themes from '@/theme/themes/themes'
+import settingState from '@/store/setting/state'
+import themeState from '@/store/theme/state'
+import { isUrl } from '@/utils'
+import { privateStorageDirectoryPath } from '@/utils/fs'
+import { type ImageSourcePropType } from 'react-native'
+
+export const BG_IMAGES = {
+  'china_ink.jpg': require('./images/china_ink.jpg') as ImageSourcePropType,
+  'jqbg.jpg': require('./images/jqbg.jpg') as ImageSourcePropType,
+  'landingMoon.png': require('./images/landingMoon2.png') as ImageSourcePropType,
+  'myzcbg.jpg': require('./images/myzcbg.jpg') as ImageSourcePropType,
+  'xnkl.png': require('./images/xnkl.png') as ImageSourcePropType,
+} as const
+
+
+let userThemes: LX.Theme[]
+export const getAllThemes = async() => {
+  // eslint-disable-next-line require-atomic-updates
+  userThemes ??= await getUserTheme()
+  return {
+    themes,
+    userThemes,
+    dataPath: privateStorageDirectoryPath + '/theme_images',
+  }
+}
+
+export const saveTheme = async(theme: LX.Theme) => {
+  const targetTheme = userThemes.find(t => t.id === theme.id)
+  if (targetTheme) Object.assign(targetTheme, theme)
+  else userThemes.push(theme)
+  await saveUserTheme(userThemes)
+}
+
+export const removeTheme = async(id: string) => {
+  const index = userThemes.findIndex(t => t.id === id)
+  if (index < 0) return
+  userThemes.splice(index, 1)
+  await saveUserTheme(userThemes)
+}
+
+export type LocalTheme = typeof themes[number]
+type ColorsKey = keyof LX.Theme['config']['themeColors']
+type ExtInfoKey = keyof LX.Theme['config']['extInfo']
+const varColorRxp = /^var\((.+)\)$/
+export const buildActiveThemeColors = (theme: LX.Theme): LX.ActiveTheme => {
+  let bgImg: ImageSourcePropType | undefined
+  if (theme.isCustom) {
+    if (theme.config.extInfo['bg-image']) {
+      theme.config.extInfo['bg-image'] =
+        isUrl(theme.config.extInfo['bg-image'])
+          ? theme.config.extInfo['bg-image']
+          : `${privateStorageDirectoryPath}/theme_images/${theme.config.extInfo['bg-image']}`
+    }
+  } else {
+    const extInfo = (theme as LocalTheme).config.extInfo
+    if (extInfo['bg-image']) {
+      if (!theme.isDark || !settingState.setting['theme.hideBgDark']) bgImg = BG_IMAGES[extInfo['bg-image']]
+    }
+  }
+
+  theme.config.extInfo = { ...theme.config.extInfo }
+
+  for (const [k, v] of Object.entries(theme.config.extInfo) as Array<[ExtInfoKey, LX.Theme['config']['extInfo'][ExtInfoKey]]>) {
+    if (!v.startsWith('var(')) continue
+    theme.config.extInfo[k] = theme.config.themeColors[v.replace(varColorRxp, '$1') as ColorsKey]
+  }
+
+  return {
+    id: theme.id,
+    name: theme.name,
+    isDark: theme.isDark,
+    ...theme.config.themeColors,
+    ...theme.config.extInfo,
+    'c-font': theme.config.themeColors['c-850'],
+    'c-font-label': theme.config.themeColors['c-450'],
+    'c-primary-font': theme.config.themeColors['c-primary'],
+    'c-primary-font-hover': theme.config.themeColors['c-primary-alpha-300'],
+    'c-primary-font-active': theme.config.themeColors['c-primary-dark-100-alpha-200'],
+    'c-primary-background': theme.config.themeColors['c-primary-light-400-alpha-700'],
+    'c-primary-background-hover': theme.isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(15, 23, 42, 0.05)',
+    'c-primary-background-active': theme.config.themeColors['c-primary-light-100-alpha-800'],
+    'c-primary-input-background': theme.isDark ? 'rgba(255, 255, 255, 0.07)' : 'rgba(15, 23, 42, 0.045)',
+    'c-button-font': theme.config.themeColors['c-primary-alpha-100'],
+    'c-button-font-selected': theme.config.themeColors['c-primary-dark-100-alpha-100'],
+    'c-button-background': theme.isDark ? 'rgba(255, 255, 255, 0.07)' : 'rgba(15, 23, 42, 0.045)',
+    'c-button-background-selected': theme.config.themeColors['c-primary-alpha-600'],
+    'c-button-background-hover': theme.isDark ? 'rgba(255, 255, 255, 0.11)' : 'rgba(15, 23, 42, 0.07)',
+    'c-button-background-active': theme.config.themeColors['c-primary-light-100-alpha-600'],
+    'c-list-header-border-bottom': theme.isDark ? 'rgba(255, 255, 255, 0.07)' : 'rgba(15, 23, 42, 0.06)',
+    'c-content-background': theme.isDark ? 'rgb(28, 30, 36)' : 'rgb(255, 255, 255)',
+    'c-border-background': theme.isDark ? 'rgba(255, 255, 255, 0.09)' : 'rgba(15, 23, 42, 0.08)',
+    'bg-image': bgImg,
+  } as const
+}
+
+
+export const getTheme = async(): Promise<LX.Theme> => {
+  const shouldUseDarkColors = themeState.shouldUseDarkColors
+  const themeId = settingState.setting['common.isAutoTheme'] && shouldUseDarkColors
+    ? 'black'
+    : settingState.setting['theme.id']
+  const builtInTheme = themes.find(theme => theme.id == themeId)
+  if (builtInTheme) return builtInTheme
+
+  userThemes = await getUserTheme()
+  return userThemes.find(theme => theme.id == themeId) ?? themes[0]
+}
