@@ -20,7 +20,7 @@ import DownloadModal, { type DownloadModalType } from '@/components/DownloadModa
 import { useI18n } from '@/lang'
 
 
-export default () => {
+export default ({ onBackToOverview }: { onBackToOverview?: () => void }) => {
   const t = useI18n()
   const activeListRef = useRef<ActiveListType>(null)
   const listMusicSearchRef = useRef<ListMusicSearchType>(null)
@@ -187,7 +187,7 @@ export default () => {
   return (
     <View style={styles.container}>
       <View style={{ zIndex: 2 }}>
-        <ActiveList ref={activeListRef} onShowSearchBar={handleShowSearch} onScrollToTop={hancelScrollToTop} />
+        <ActiveList ref={activeListRef} onShowSearchBar={handleShowSearch} onScrollToTop={hancelScrollToTop} onBackToOverview={onBackToOverview} />
         <MultipleModeBar
           ref={multipleModeBarRef}
           onSwitchMode={hancelSwitchSelectMode}

@@ -125,7 +125,7 @@ export const downloadManager: DownloadManager = new DownloadManager({
   directory: DEFAULT_DOWNLOAD_DIRECTORY,
   concurrency: 2,
   saveLyric: true,
-  embedMetadata: false,
+  embedMetadata: true,
   allowToggleSource: false,
 })
 

@@ -18,7 +18,7 @@ const defaultSetting: LX.AppSetting = {
   'player.startupAutoPlay': false,
   'player.startupPushPlayDetailScreen': false,
   'player.togglePlayMethod': 'listLoop',
-  'player.playQuality': '128k',
+  'player.playQuality': '320k',
   'player.isSavePlayTime': true,
   'player.volume': 1,
   'player.playbackRate': 1,
@@ -28,11 +28,11 @@ const defaultSetting: LX.AppSetting = {
   'player.isAutoCleanPlayedList': false,
   'player.isHandleAudioFocus': true,
   'player.isEnableAudioOffload': false,
-  'player.isShowLyricTranslation': false,
-  'player.isShowLyricRoma': false,
+  'player.isShowLyricTranslation': true,
+  'player.isShowLyricRoma': true,
   'player.isShowNotificationImage': true,
   'player.isS2t': false,
-  'player.isShowBluetoothLyric': false,
+  'player.isShowBluetoothLyric': true,
   'player.isShowBluetoothFullLyric': false,
 
   // 'playDetail.isZoomActiveLrc': false,
@@ -68,7 +68,7 @@ const defaultSetting: LX.AppSetting = {
   'list.isSaveScrollLocation': true,
   'list.addMusicLocationType': 'top',
 
-  'download.fileName': '歌名 - 歌手',
+  'download.fileName': '歌手 - 歌名',
 
   'sync.enable': false,
 

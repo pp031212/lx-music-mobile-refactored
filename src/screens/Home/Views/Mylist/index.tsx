@@ -1,34 +1,43 @@
-import { useEffect, useRef } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { View } from 'react-native'
 import MusicList from './MusicList'
 import MyList from './MyList'
-import Popup, { type PopupType } from '@/components/common/Popup'
-import { useI18n } from '@/lang'
 import { createStyle } from '@/utils/tools'
 
 export default () => {
-  const popupRef = useRef<PopupType>(null)
-  const t = useI18n()
+  const [viewMode, setViewMode] = useState<'overview' | 'detail'>('overview')
+
+  const handleOpenDetail = useCallback(() => {
+    setViewMode('detail')
+  }, [])
+
+  const handleBackOverview = useCallback(() => {
+    setViewMode('overview')
+  }, [])
 
   useEffect(() => {
     const changeVisible = (visible: boolean) => {
-      popupRef.current?.setVisible(visible)
+      setViewMode(visible ? 'overview' : 'detail')
+    }
+    const handleJumpPosition = () => {
+      setViewMode('detail')
     }
 
     global.app_event.on('changeLoveListVisible', changeVisible)
+    global.app_event.on('jumpListPosition', handleJumpPosition)
     return () => {
       global.app_event.off('changeLoveListVisible', changeVisible)
+      global.app_event.off('jumpListPosition', handleJumpPosition)
     }
   }, [])
 
   return (
     <View style={styles.container}>
-      <MusicList />
-      <Popup ref={popupRef} position="bottom" title={t('nav_love')}>
-        <View style={styles.sheetBody}>
-          <MyList />
-        </View>
-      </Popup>
+      {viewMode == 'overview' ? (
+        <MyList onSelectList={handleOpenDetail} />
+      ) : (
+        <MusicList onBackToOverview={handleBackOverview} />
+      )}
     </View>
   )
 }
@@ -36,9 +45,5 @@ export default () => {
 const styles = createStyle({
   container: {
     flex: 1,
-  },
-  sheetBody: {
-    maxHeight: '100%',
-    paddingBottom: 12,
   },
 })
