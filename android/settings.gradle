@@ -1,4 +1,14 @@
 rootProject.name = 'cn.toside.music.mobile'
+
+def trackPlayerPatch = providers.exec {
+    workingDir(settingsDir.parentFile)
+    commandLine("node", "dependencies-patch.js")
+    ignoreExitValue = true
+}
+if (trackPlayerPatch.result.get().exitValue != 0) {
+    throw new GradleException("Unable to prepare Track Player audio effects:\n" + trackPlayerPatch.standardError.asText.get())
+}
+
 apply from: file("../node_modules/@react-native-community/cli-platform-android/native_modules.gradle"); applyNativeModulesSettingsGradle(settings)
 include ':app'
 includeBuild('../node_modules/@react-native/gradle-plugin')

@@ -1,4 +1,4 @@
-import { memo, useState, useMemo, useCallback } from 'react'
+import { memo, useEffect, useState, useMemo, useCallback } from 'react'
 import { StyleSheet, View } from 'react-native'
 import { BorderWidths } from '@/theme'
 import { Icon } from '@/components/common/Icon'
@@ -27,6 +27,10 @@ const CommentFloor = memo(({ comment, isLast }: {
   const { onLayout, width } = useLayout()
   const t = useI18n()
 
+  useEffect(() => {
+    setIsAvatarError(false)
+  }, [comment.avatar])
+
   const handleAvatarError = useCallback(() => {
     setIsAvatarError(true)
   }, [])
@@ -38,25 +42,22 @@ const CommentFloor = memo(({ comment, isLast }: {
       <View style={{ ...styles.replyFloor, borderTopColor: theme['c-list-header-border-bottom'] }}>
         {
           comment.reply.map((c, index) => (
-            <CommentFloor comment={c} isLast={index === endIndex} key={`${comment.id}_${c.id}`} />
+            <CommentFloor comment={c} isLast={index === endIndex} key={`${String(comment.id)}_${String(c.id)}_${index}`} />
           ))
         }
       </View>
     )
-
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [comment.id, comment.reply, theme])
 
   const likedCount = useMemo(() => {
     if (comment.likedCount == null) return null
     return (
       <View style={styles.like}>
         <Icon name="thumbs-up" style={{ color: theme['c-450'] }} size={12} />
-        <Text style={styles.likedCount} size={12} color={ theme['c-450'] }>{comment.likedCount}</Text>
+        <Text style={styles.likedCount} size={12} color={theme['c-450']}>{comment.likedCount}</Text>
       </View>
     )
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [comment.likedCount, theme])
 
   return (
     <View style={{ ...styles.container, borderBottomColor: theme['c-list-header-border-bottom'], borderBottomWidth: isLast ? 0 : BorderWidths.normal, paddingBottom: isLast ? 0 : GAP }}>
@@ -65,17 +66,18 @@ const CommentFloor = memo(({ comment, isLast }: {
           <Image
             url={comment.avatar && !isAvatarError ? comment.avatar : defaultUser}
             onError={handleAvatarError}
-            style={stylesRaw.avatar} />
+            style={stylesRaw.avatar}
+          />
         </View>
         <View style={styles.right}>
           <View style={styles.info}>
-            <View>
+            <View style={styles.userInfo}>
               <Text selectable numberOfLines={1} size={14}>
                 {comment.userName}
               </Text>
               <View style={styles.metaInfo}>
-                <Text numberOfLines={1} size={12} color={theme['c-450']}>{comment.timeStr}</Text>
-                { comment.location ? <Text numberOfLines={1} style={styles.location} size={12} color={theme['c-450']}>{t('location', { location: comment.location })}</Text> : null }
+                {comment.timeStr ? <Text numberOfLines={1} size={12} color={theme['c-450']}>{comment.timeStr}</Text> : null}
+                {comment.location ? <Text numberOfLines={1} style={styles.location} size={12} color={theme['c-450']}>{t('location', { location: comment.location })}</Text> : null}
               </View>
             </View>
             {likedCount}
@@ -101,32 +103,32 @@ const CommentFloor = memo(({ comment, isLast }: {
 
 const styles = createStyle({
   container: {
-    flex: 1,
-    // backgroundColor: 'rgba(0,0,0,0.1)',
     marginTop: GAP,
     paddingBottom: GAP,
     borderBottomWidth: BorderWidths.normal,
     borderStyle: 'dashed',
   },
   comment: {
-    flex: 1,
-    // backgroundColor: 'rgba(0,0,0,0.1)',
     flexDirection: 'row',
+    alignItems: 'flex-start',
   },
   right: {
     flex: 1,
     paddingLeft: 10,
   },
   info: {
-    flex: 1,
     flexDirection: 'row',
-    // backgroundColor: 'rgba(0,0,0,0.1)',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-start',
+  },
+  userInfo: {
+    flex: 1,
+    paddingRight: 8,
   },
   metaInfo: {
     marginTop: 2,
     flexDirection: 'row',
+    flexWrap: 'wrap',
   },
   location: {
     marginLeft: 10,
@@ -134,9 +136,11 @@ const styles = createStyle({
   like: {
     flexDirection: 'row',
     alignItems: 'center',
+    flexShrink: 0,
+    paddingTop: 2,
   },
   likedCount: {
-    marginLeft: 2,
+    marginLeft: 3,
   },
   images: {
     paddingTop: 5,
@@ -147,7 +151,6 @@ const styles = createStyle({
     marginTop: GAP,
     marginLeft: 20,
     borderTopWidth: BorderWidths.normal,
-    // backgroundColor: 'rgba(0,0,0,0.1)',
     borderStyle: 'dashed',
   },
 })

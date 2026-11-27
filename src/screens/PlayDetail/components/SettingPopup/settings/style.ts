@@ -1,32 +1,47 @@
 import { createStyle } from '@/utils/tools'
+import { BorderWidths } from '@/theme'
 
 export default createStyle({
-  container: {
-    paddingTop: 5,
-    paddingLeft: 15,
-    paddingRight: 15,
-    paddingBottom: 15,
-    alignItems: 'flex-start',
+  card: {
+    borderRadius: 12,
+    borderWidth: BorderWidths.normal,
+    paddingHorizontal: 14,
+    marginBottom: 12,
   },
-  // title: {
-
-  // },
-  label: {
-    width: 50,
-    textAlign: 'center',
+  item: {
+    paddingVertical: 11,
   },
-  content: {
-    flexGrow: 0,
-    flexShrink: 1,
+  divider: {
+    borderTopWidth: BorderWidths.normal,
+  },
+  headerRow: {
     flexDirection: 'row',
-    flexWrap: 'nowrap',
     alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 4,
+  },
+  switchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 12,
+    gap: 12,
+  },
+  switchLabel: {
+    flex: 1,
+    lineHeight: 20,
+  },
+  sliderWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginHorizontal: -4,
+  },
+  valueText: {
+    fontWeight: '500',
   },
   list: {
-    flexGrow: 0,
-    flexShrink: 1,
     flexDirection: 'row',
     flexWrap: 'wrap',
-    paddingTop: 5,
+    paddingTop: 6,
   },
 })

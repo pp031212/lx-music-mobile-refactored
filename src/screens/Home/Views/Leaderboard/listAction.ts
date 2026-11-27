@@ -3,19 +3,26 @@ import { playList } from '@/core/player/player'
 import { getListDetail, getListDetailAll } from '@/core/leaderboard'
 import { LIST_IDS } from '@/config/constant'
 import listState from '@/store/list/state'
+import leaderboardState from '@/store/leaderboard/state'
 import syncSourceList from '@/core/syncSourceList'
 import { confirmDialog, toMD5, toast } from '@/utils/tools'
 
 
 const getListId = (id: string) => `board__${id}`
 
-export const handlePlay = async(id: string, list?: LX.Music.MusicInfoOnline[], index = 0) => {
+export const handlePlay = async(id: string, list?: LX.Music.MusicInfoOnline[], index = 0, name?: string) => {
   let isPlayingList = false
-  // console.log(list)
   const listId = getListId(id)
+  let boardName = name || ''
+  if (!boardName) {
+    for (const boards of Object.values(leaderboardState.boards)) {
+      const matched = boards?.list.find(b => b.id == id)
+      if (matched) { boardName = matched.name; break }
+    }
+  }
   if (!list?.length) list = (await getListDetail(id, 1)).list
   if (list?.length) {
-    await setTempList(listId, [...list])
+    await setTempList(listId, [...list], boardName)
     void playList(LIST_IDS.TEMP, index)
     isPlayingList = true
   }
@@ -23,10 +30,10 @@ export const handlePlay = async(id: string, list?: LX.Music.MusicInfoOnline[], i
   if (!fullList.length) return
   if (isPlayingList) {
     if (listState.tempListMeta.id == listId) {
-      await setTempList(listId, [...fullList])
+      await setTempList(listId, [...fullList], boardName)
     }
   } else {
-    await setTempList(listId, [...fullList])
+    await setTempList(listId, [...fullList], boardName)
     void playList(LIST_IDS.TEMP, index)
   }
 }

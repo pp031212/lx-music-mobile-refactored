@@ -10,6 +10,7 @@ import { screenkeepAwake, screenUnkeepAwake } from '@/utils/nativeModules/utils'
 import commonState, { type InitState as CommonState } from '@/store/common/state'
 import { createStyle } from '@/utils/tools'
 import { useTheme } from '@/store/theme/hook'
+import AudioVisualizer from '../components/AudioVisualizer'
 
 const LyricPage = ({ activeIndex }: { activeIndex: number }) => {
   const initedRef = useRef(false)
@@ -23,7 +24,7 @@ const LyricPage = ({ activeIndex }: { activeIndex: number }) => {
   }
 }
 
-export default memo(({ componentId }: { componentId: string }) => {
+export default memo(({ componentId, visible }: { componentId: string, visible: boolean }) => {
   const theme = useTheme()
   const pagerViewRef = useRef<PagerView>(null)
   const [pageIndex, setPageIndex] = useState(0)
@@ -60,7 +61,7 @@ export default memo(({ componentId }: { componentId: string }) => {
     })
 
     const handleComponentIdsChange = (ids: CommonState['componentIds']) => {
-      if (ids.comment) screenUnkeepAwake()
+      if (ids.comment) screenkeepAwake()
       else if (AppState.currentState == 'active') screenkeepAwake()
     }
 
@@ -78,6 +79,7 @@ export default memo(({ componentId }: { componentId: string }) => {
     <>
       <Header showMiniCover={pageIndex == 1} onPressMiniCover={handleOpenCover} />
       <View style={styles.container}>
+        <AudioVisualizer visible={visible} />
         <PagerView
           ref={pagerViewRef}
           onPageSelected={onPageSelected}

@@ -48,11 +48,20 @@ export const getHotComment = async(musicInfo: LX.Music.MusicInfoOnline, page: nu
 }
 
 export const filterList = (list: Comment[]) => {
-  const set = new Set()
+  const seenIds = new Set<string>()
+  const coveredSubIds = new Set<string>()
   return list.filter(c => {
-    let id = String(c.id)
-    if (set.has(id)) return false
-    set.add(id)
+    const id = String(c.id)
+    if (seenIds.has(id)) return false
+    // Deduplicate cross-page QQ Music reply chains whose commentid (sub_${rootId}_${commentId})
+    // was already rendered inside a newer thread on an earlier page.
+    if (coveredSubIds.has(`sub_${id}`)) return false
+    seenIds.add(id)
+    if (Array.isArray(c.reply)) {
+      for (const r of c.reply) {
+        if (r?.id != null) coveredSubIds.add(String(r.id))
+      }
+    }
     return true
   })
 }

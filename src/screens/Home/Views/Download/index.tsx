@@ -95,8 +95,8 @@ export default () => {
       }
     }
 
-    const primaryIcon = isCompleted ? 'play' : isRunning ? 'pause' : 'available_updates'
-    const primaryLabel = isCompleted ? t('play') : isRunning ? t('download_pause') : t('download_restart')
+    const primaryIcon = isCompleted ? 'play' : isRunning ? 'pause' : task.status == 'error' ? 'available_updates' : 'play'
+    const primaryLabel = isCompleted ? t('play') : isRunning ? t('download_pause') : t(task.downloaded > 0 ? 'download_resume' : 'download_restart')
 
     return (
       <TouchableOpacity

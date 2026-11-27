@@ -6,8 +6,10 @@ import initWatchList from './watchList'
 import initPlayProgress from './playProgress'
 import initPreloadNextMusic from './preloadNextMusic'
 import initLyric from './lyric'
+import { initAudioEffects } from '@/plugins/player/audioEffects'
 
 export default async(setting: LX.AppSetting) => {
+  initAudioEffects()
   await initPlayer(setting)
   await initLyric(setting)
   await initPlayInfo(setting)

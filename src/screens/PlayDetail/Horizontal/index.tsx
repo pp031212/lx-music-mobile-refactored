@@ -17,9 +17,10 @@ import Player from './Player'
 import { createStyle } from '@/utils/tools'
 import { marginLeftRaw } from './constant'
 import { useStatusbarHeight } from '@/store/common/hook'
+import AudioVisualizer from '../components/AudioVisualizer'
 // import MoreBtn from './MoreBtn2'
 
-export default memo(({ componentId }: { componentId: string }) => {
+export default memo(({ componentId, visible }: { componentId: string, visible: boolean }) => {
   const statusBarHeight = useStatusbarHeight()
 
   useEffect(() => {
@@ -37,7 +38,7 @@ export default memo(({ componentId }: { componentId: string }) => {
     })
 
     const handleComponentIdsChange = (ids: CommonState['componentIds']) => {
-      if (ids.comment) screenUnkeepAwake()
+      if (ids.comment) screenkeepAwake()
       else if (AppState.currentState == 'active') screenkeepAwake()
     }
 
@@ -54,6 +55,7 @@ export default memo(({ componentId }: { componentId: string }) => {
   return (
     <PageContent>
       <StatusBar />
+      <AudioVisualizer visible={visible} />
       <View style={{ ...styles.container, paddingTop: statusBarHeight }}>
         <View style={styles.left}>
           <Header />

@@ -1,17 +1,20 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { View } from 'react-native'
 import Content from './Content'
 import TagList from './TagList'
 import Popup, { type PopupType } from '@/components/common/Popup'
+import { type Source } from '@/store/songlist/state'
 import { useI18n } from '@/lang'
 import { createStyle } from '@/utils/tools'
 
 export default () => {
   const popupRef = useRef<PopupType>(null)
+  const [tagInfo, setTagInfo] = useState<{ source: Source, activeId: string } | null>(null)
   const t = useI18n()
 
   useEffect(() => {
-    const handleShow = () => {
+    const handleShow = (source: Source, activeId: string) => {
+      setTagInfo({ source, activeId })
       popupRef.current?.setVisible(true)
     }
     const handleHide = () => {
@@ -31,7 +34,7 @@ export default () => {
     <View style={styles.container}>
       <Content />
       <Popup ref={popupRef} position="bottom" title={t('songlist_tags')}>
-        <TagList />
+        {tagInfo ? <TagList source={tagInfo.source} activeId={tagInfo.activeId} /> : null}
       </Popup>
     </View>
   )

@@ -172,8 +172,12 @@ export default {
     return { source: 'wy', comments: this.filterComment(body.hotComments), total, page, limit, maxPage: Math.ceil(total / limit) || 1 }
   },
   filterComment(rawList) {
-    return rawList.map(item => {
-      let data = {
+    if (!Array.isArray(rawList) || !rawList.length) return []
+    const byRoot = new Map()
+    const result = []
+
+    for (const item of rawList) {
+      const data = {
         id: item.commentId,
         text: item.content ? applyEmoji(item.content) : '',
         time: item.time ? item.time : '',
@@ -186,22 +190,46 @@ export default {
         reply: [],
       }
 
-      let replyData = item.beReplied && item.beReplied[0]
-      return replyData
-        ? {
-            id: item.commentId,
-            rootId: replyData.beRepliedCommentId,
-            text: replyData.content ? applyEmoji(replyData.content) : '',
-            time: item.time,
-            timeStr: null,
-            location: replyData.ipLocation?.location,
-            userName: replyData.user.nickname,
-            avatar: replyData.user.avatarUrl,
-            userId: replyData.user.userId,
-            likedCount: null,
-            reply: [data],
+      const replyData = item.beReplied && item.beReplied[0]
+      if (replyData) {
+        const rootKey = String(replyData.beRepliedCommentId ?? '')
+        const existing = rootKey ? byRoot.get(rootKey) : null
+        if (existing) {
+          if (!existing.reply.some(r => String(r.id) === String(data.id))) {
+            existing.reply.push(data)
           }
-        : data
-    })
+          continue
+        }
+        const entry = {
+          id: item.commentId,
+          rootId: replyData.beRepliedCommentId,
+          text: replyData.content ? applyEmoji(replyData.content) : '',
+          time: item.time,
+          timeStr: null,
+          location: replyData.ipLocation?.location,
+          userName: replyData.user.nickname,
+          avatar: replyData.user.avatarUrl,
+          userId: replyData.user.userId,
+          likedCount: null,
+          reply: [data],
+        }
+        if (rootKey) byRoot.set(rootKey, entry)
+        result.push(entry)
+      } else {
+        const rootKey = String(item.commentId ?? '')
+        const existing = rootKey ? byRoot.get(rootKey) : null
+        if (existing) {
+          if (!existing.timeStr && data.timeStr) existing.timeStr = data.timeStr
+          if (existing.likedCount == null && data.likedCount != null) existing.likedCount = data.likedCount
+          if (!existing.avatar && data.avatar) existing.avatar = data.avatar
+          if (!existing.location && data.location) existing.location = data.location
+          continue
+        }
+        if (rootKey) byRoot.set(rootKey, data)
+        result.push(data)
+      }
+    }
+
+    return result
   },
 }

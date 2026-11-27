@@ -1,8 +1,7 @@
 import { forwardRef, useImperativeHandle, useRef, useState } from 'react'
-import Dialog, { type DialogType } from '@/components/common/Dialog'
+import { type ModalType } from '@/components/common/Modal'
 import { toast } from '@/utils/tools'
-import Title from './Title'
-import List from './List'
+import PlaylistPickerSheet from '../MusicAddModal/PlaylistPickerSheet'
 import { useI18n } from '@/lang'
 import { addListMusics, moveListMusics } from '@/core/list'
 import settingState from '@/store/setting/state'
@@ -11,17 +10,11 @@ export interface SelectInfo {
   selectedList: LX.Music.MusicInfo[]
   listId: string
   isMove: boolean
-  // single: boolean
 }
-const initSelectInfo = { selectedList: [], listId: '', isMove: false }
+const initSelectInfo: SelectInfo = { selectedList: [], listId: '', isMove: false }
 
 export interface MusicMultiAddModalProps {
   onAdded?: () => void
-  // onRename: (listInfo: LX.List.UserListInfo) => void
-  // onImport: (listInfo: LX.List.MyListInfo, index: number) => void
-  // onExport: (listInfo: LX.List.MyListInfo, index: number) => void
-  // onSync: (listInfo: LX.List.UserListInfo) => void
-  // onRemove: (listInfo: LX.List.UserListInfo) => void
 }
 export interface MusicMultiAddModalType {
   show: (info: SelectInfo) => void
@@ -29,27 +22,27 @@ export interface MusicMultiAddModalType {
 
 export default forwardRef<MusicMultiAddModalType, MusicMultiAddModalProps>(({ onAdded }, ref) => {
   const t = useI18n()
-  const dialogRef = useRef<DialogType>(null)
+  const modalRef = useRef<ModalType>(null)
   const [selectInfo, setSelectInfo] = useState<SelectInfo>(initSelectInfo)
 
   useImperativeHandle(ref, () => ({
-    show(selectInfo) {
-      setSelectInfo(selectInfo)
-
+    show(info) {
+      setSelectInfo(info)
       requestAnimationFrame(() => {
-        dialogRef.current?.setVisible(true)
+        modalRef.current?.setVisible(true)
       })
     },
   }))
 
   const handleHide = () => {
     requestAnimationFrame(() => {
-      setSelectInfo({ ...selectInfo, selectedList: [] })
+      setSelectInfo(prev => ({ ...prev, selectedList: [] }))
     })
   }
 
   const handleSelect = (listInfo: LX.List.MyListInfo) => {
-    dialogRef.current?.setVisible(false)
+    modalRef.current?.setVisible(false)
+    if (!selectInfo.selectedList.length) return
     if (selectInfo.isMove) {
       void moveListMusics(selectInfo.listId, listInfo.id,
         [...selectInfo.selectedList],
@@ -73,17 +66,20 @@ export default forwardRef<MusicMultiAddModalType, MusicMultiAddModalProps>(({ on
     }
   }
 
+  const title = (selectInfo.isMove ? t('move_to') : t('add_to')).replace(/\.\.\.$/, '')
+  const isEnglish = t('cancel') == 'Cancel'
+  const subtitle = selectInfo.selectedList.length
+    ? (isEnglish ? `${selectInfo.selectedList.length} tracks selected` : `已选 ${selectInfo.selectedList.length} 首歌曲`)
+    : ''
+
   return (
-    <Dialog ref={dialogRef} onHide={handleHide}>
-      {
-        selectInfo.selectedList.length
-          ? (<>
-              <Title selectedList={selectInfo.selectedList} isMove={selectInfo.isMove} />
-              <List listId={selectInfo.listId} onPress={handleSelect} />
-            </>)
-          : null
-      }
-    </Dialog>
+    <PlaylistPickerSheet
+      modalRef={modalRef}
+      title={title}
+      subtitle={subtitle}
+      excludeListId={selectInfo.listId || undefined}
+      onSelect={handleSelect}
+      onHide={handleHide}
+    />
   )
 })
-

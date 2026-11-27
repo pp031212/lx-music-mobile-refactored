@@ -1,5 +1,4 @@
 import { useState } from 'react'
-
 import { View } from 'react-native'
 import { useTheme } from '@/store/theme/hook'
 import Text from '@/components/common/Text'
@@ -8,7 +7,6 @@ import Slider, { type SliderProps } from '@/components/common/Slider'
 import { updateSetting } from '@/core/common'
 import { useI18n } from '@/lang'
 import styles from './style'
-
 
 const LrcFontSize = ({ direction }: {
   direction: 'horizontal' | 'vertical'
@@ -20,7 +18,7 @@ const LrcFontSize = ({ direction }: {
   const [isSliding, setSliding] = useState(false)
   const t = useI18n()
 
-  const handleSlidingStart: SliderProps['onSlidingStart'] = value => {
+  const handleSlidingStart: SliderProps['onSlidingStart'] = () => {
     setSliding(true)
   }
   const handleValueChange: SliderProps['onValueChange'] = value => {
@@ -33,10 +31,14 @@ const LrcFontSize = ({ direction }: {
   }
 
   return (
-    <View style={styles.container}>
-      <Text>{t('play_detail_setting_lrc_font_size')}</Text>
-      <View style={styles.content}>
-        <Text style={styles.label} color={theme['c-font-label']}>{isSliding ? sliderSize : lrcFontSize}</Text>
+    <View style={styles.item}>
+      <View style={styles.headerRow}>
+        <Text size={14}>{t('play_detail_setting_lrc_font_size')}</Text>
+        <Text size={13} style={styles.valueText} color={theme['c-font-label']}>
+          {isSliding ? sliderSize : lrcFontSize}
+        </Text>
+      </View>
+      <View style={styles.sliderWrap}>
         <Slider
           minimumValue={100}
           maximumValue={300}

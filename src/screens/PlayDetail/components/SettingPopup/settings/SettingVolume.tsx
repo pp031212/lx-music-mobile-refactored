@@ -1,5 +1,4 @@
 import { useState } from 'react'
-
 import { View } from 'react-native'
 import { useTheme } from '@/store/theme/hook'
 import Text from '@/components/common/Text'
@@ -10,7 +9,6 @@ import { useI18n } from '@/lang'
 import styles from './style'
 import { setVolume } from '@/plugins/player'
 
-
 const Volume = () => {
   const theme = useTheme()
   const volume = Math.trunc(useSettingValue('player.volume') * 100)
@@ -18,7 +16,7 @@ const Volume = () => {
   const [isSliding, setSliding] = useState(false)
   const t = useI18n()
 
-  const handleSlidingStart: SliderProps['onSlidingStart'] = value => {
+  const handleSlidingStart: SliderProps['onSlidingStart'] = () => {
     setSliding(true)
   }
   const handleValueChange: SliderProps['onValueChange'] = value => {
@@ -34,10 +32,14 @@ const Volume = () => {
   }
 
   return (
-    <View style={styles.container}>
-      <Text>{t('play_detail_setting_volume')}</Text>
-      <View style={styles.content}>
-        <Text style={styles.label} color={theme['c-font-label']}>{isSliding ? sliderSize : volume}</Text>
+    <View style={styles.item}>
+      <View style={styles.headerRow}>
+        <Text size={14}>{t('play_detail_setting_volume')}</Text>
+        <Text size={13} style={styles.valueText} color={theme['c-font-label']}>
+          {isSliding ? sliderSize : volume}
+        </Text>
+      </View>
+      <View style={styles.sliderWrap}>
         <Slider
           minimumValue={0}
           maximumValue={100}

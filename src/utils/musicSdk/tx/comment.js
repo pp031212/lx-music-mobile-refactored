@@ -112,7 +112,6 @@ export default {
     })
     const { body, statusCode } = await _requestObj.promise
     if (statusCode != 200 || body.code !== 0) throw new Error('获取评论失败')
-    // console.log(body, statusCode)
     const comment = body.comment
     return {
       source: 'tx',
@@ -124,24 +123,6 @@ export default {
     }
   },
   async getHotComment(mInfo, page = 1, limit = 20) {
-    // const _requestObj2 = httpFetch('http://c.y.qq.com/base/fcgi-bin/fcg_global_comment_h5.fcg', {
-    //   method: 'POST',
-    //   headers: {
-    //     'User-Agent': 'Mozilla/5.0 (compatible; MSIE 9.0; Windows NT 6.1; WOW64; Trident/5.0)',
-    //   },
-    //   form: {
-    //     uin: '0',
-    //     format: 'json',
-    //     cid: '205360772',
-    //     reqtype: '2',
-    //     biztype: '1',
-    //     topid: songId,
-    //     cmd: '9',
-    //     needmusiccrit: '1',
-    //     pagenum: page - 1,
-    //     pagesize: limit,
-    //   },
-    // })
     if (this._requestObj2) this._requestObj2.cancelHttp()
     const songId = await this.getSongId(mInfo)
 
@@ -181,7 +162,6 @@ export default {
       },
     })
     const { body, statusCode } = await _requestObj2.promise
-    // console.log('body', body)
     if (statusCode != 200 || body.code !== 0 || body.req.code !== 0) throw new Error('获取热门评论失败')
     const comment = body.req.data.CommentList
     return {
@@ -194,44 +174,69 @@ export default {
     }
   },
   filterNewComment(rawList) {
-    return rawList.map(item => {
+    if (!Array.isArray(rawList) || !rawList.length) return []
+
+    // QQ Music's "latest comments" API returns each reply event as a separate row
+    // that repeats the same root comment and earlier reply chain.
+    // Track every subcommentid already covered by a newer row under the same rootcommentid,
+    // and skip older rows whose commentid is already displayed inside a newer thread.
+    const coveredByRoot = new Map()
+    const filtered = []
+
+    for (const item of rawList) {
+      const rootId = String(item.rootcommentid ?? '')
+      const commentId = String(item.commentid ?? '')
+      let covered = coveredByRoot.get(rootId)
+      if (!covered) {
+        covered = new Set()
+        coveredByRoot.set(rootId, covered)
+      }
+      if (commentId && covered.has(commentId)) continue
+
       let time = this.formatTime(item.time)
       let timeStr = time ? dateFormat2(time) : null
-      if (item.middlecommentcontent) {
-        let firstItem = item.middlecommentcontent[0]
-        firstItem.avatarurl = item.avatarurl
-        firstItem.praisenum = item.praisenum
-        item.avatarurl = null
-        item.praisenum = null
-        item.middlecommentcontent.reverse()
+      let avatar = item.avatarurl
+      let praised = item.praisenum
+      let replyList = []
+
+      if (Array.isArray(item.middlecommentcontent) && item.middlecommentcontent.length) {
+        const clonedReplies = item.middlecommentcontent.map(c => ({ ...c }))
+        clonedReplies[0].avatarurl = avatar
+        clonedReplies[0].praisenum = praised
+        avatar = null
+        praised = null
+        clonedReplies.reverse()
+        for (const c of clonedReplies) {
+          if (c.subcommentid != null) covered.add(String(c.subcommentid))
+        }
+        replyList = clonedReplies.map(c => ({
+          id: `sub_${item.rootcommentid}_${c.subcommentid}`,
+          text: this.replaceEmoji(c.subcommentcontent).replace(/\\n/g, '\n'),
+          time: c.subcommentid == item.commentid ? time : null,
+          timeStr: c.subcommentid == item.commentid ? timeStr : null,
+          userName: c.replynick ? c.replynick.substring(1) : '',
+          avatar: c.avatarurl,
+          userId: c.encrypt_replyuin,
+          likedCount: c.praisenum,
+        }))
       }
-      return {
+      if (commentId) covered.add(commentId)
+
+      filtered.push({
         id: `${item.rootcommentid}_${item.commentid}`,
         rootId: item.rootcommentid,
         text: item.rootcommentcontent ? this.replaceEmoji(item.rootcommentcontent).replace(/\\n/g, '\n') : '',
         time: item.rootcommentid == item.commentid ? time : null,
         timeStr: item.rootcommentid == item.commentid ? timeStr : null,
         userName: item.rootcommentnick ? item.rootcommentnick.substring(1) : '',
-        avatar: item.avatarurl,
+        avatar,
         userId: item.encrypt_rootcommentuin,
-        likedCount: item.praisenum,
-        reply: item.middlecommentcontent
-          ? item.middlecommentcontent.map(c => {
-            // let index = c.subcommentid.lastIndexOf('_')
-            return {
-              id: `sub_${item.rootcommentid}_${c.subcommentid}`,
-              text: this.replaceEmoji(c.subcommentcontent).replace(/\\n/g, '\n'),
-              time: c.subcommentid == item.commentid ? time : null,
-              timeStr: c.subcommentid == item.commentid ? timeStr : null,
-              userName: c.replynick.substring(1),
-              avatar: c.avatarurl,
-              userId: c.encrypt_replyuin,
-              likedCount: c.praisenum,
-            }
-          })
-          : [],
-      }
-    })
+        likedCount: praised,
+        reply: replyList,
+      })
+    }
+
+    return filtered
   },
   filterHotComment(rawList) {
     return rawList.map(item => {

@@ -111,13 +111,12 @@ export default forwardRef<VerticalSettingType, {}>((_props, ref) => {
         >
           <TouchableOpacity
             style={styles.subHeaderBackBtn}
+            accessibilityRole="button"
+            accessibilityLabel={t('back')}
             activeOpacity={0.65}
             onPress={() => { setActiveId(null) }}
           >
             <Icon name="chevron-left" size={16} color={theme['c-primary-font-active']} />
-            <Text style={styles.subHeaderBack} size={14} color={theme['c-primary-font-active']}>
-              {t('nav_setting')}
-            </Text>
           </TouchableOpacity>
           <View style={{ ...styles.subHeaderDivider, backgroundColor: theme['c-border-background'] }} />
           <Text style={styles.subHeaderTitle} size={15} numberOfLines={1} color={theme['c-font']}>
@@ -229,15 +228,10 @@ const styles = createStyle({
     borderBottomWidth: BorderWidths.normal,
   },
   subHeaderBackBtn: {
+    width: 44,
     height: '100%',
-    flexDirection: 'row',
     alignItems: 'center',
-    paddingLeft: 14,
-    paddingRight: 10,
-  },
-  subHeaderBack: {
-    marginLeft: 4,
-    fontWeight: '500',
+    justifyContent: 'center',
   },
   subHeaderDivider: {
     width: 1,

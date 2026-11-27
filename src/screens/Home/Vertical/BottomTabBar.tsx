@@ -14,6 +14,8 @@ import { useKeyboard } from '@/utils/hooks'
 import { useSettingValue } from '@/store/setting/hook'
 
 const TAB_BAR_HEIGHT = scaleSizeH(56)
+const CORE_BOTTOM_TABS = new Set<NAV_ID_Type>(['nav_search', 'nav_songlist', 'nav_top', 'nav_love'])
+const BOTTOM_MENUS = NAV_MENUS.filter(menu => CORE_BOTTOM_TABS.has(menu.id))
 
 const TabItem = ({ id, icon }: { id: NAV_ID_Type, icon: string }) => {
   const t = useI18n()
@@ -65,7 +67,7 @@ export default memo(() => {
         borderTopColor: theme['c-border-background'],
       }}
     >
-      {NAV_MENUS.map(menu => (
+      {BOTTOM_MENUS.map(menu => (
         <TabItem key={menu.id} id={menu.id} icon={menu.icon} />
       ))}
     </View>

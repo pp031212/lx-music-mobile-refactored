@@ -1,5 +1,4 @@
 import { useMemo } from 'react'
-
 import { View } from 'react-native'
 import Text from '@/components/common/Text'
 import { useSettingValue } from '@/store/setting/hook'
@@ -28,8 +27,7 @@ const Item = ({ id, name, change }: {
   change: (id: Align_Type) => void
 }) => {
   const isActive = useActive(id)
-  // const [toggleCheckBox, setToggleCheckBox] = useState(false)
-  return <CheckBox marginBottom={3} check={isActive} label={name} onChange={() => { change(id) }} need />
+  return <CheckBox marginBottom={0} check={isActive} label={name} onChange={() => { change(id) }} need />
 }
 
 export default () => {
@@ -43,14 +41,10 @@ export default () => {
   }
 
   return (
-    <View style={styles.container}>
-      <Text>{t('play_detail_setting_lrc_align')}</Text>
-      <View style={styles.content}>
-        <View style={styles.list}>
-          {
-            list.map(({ id, name }) => <Item name={name} id={id} key={id} change={setPosition} />)
-          }
-        </View>
+    <View style={styles.item}>
+      <Text size={14}>{t('play_detail_setting_lrc_align')}</Text>
+      <View style={styles.list}>
+        {list.map(({ id, name }) => <Item name={name} id={id} key={id} change={setPosition} />)}
       </View>
     </View>
   )

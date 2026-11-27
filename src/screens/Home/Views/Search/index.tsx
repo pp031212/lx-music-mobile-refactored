@@ -1,8 +1,9 @@
-import { useRef, useEffect } from 'react'
+import { useRef, useEffect, useState } from 'react'
 import { type LayoutChangeEvent, View } from 'react-native'
 import HeaderBar, { type HeaderBarProps, type HeaderBarType } from './HeaderBar'
 import SearchTypeSelector from './SearchTypeSelector'
 import searchState, { type SearchType } from '@/store/search/state'
+import searchAction from '@/store/search/action'
 import searchMusicState from '@/store/search/music/state'
 import searchSonglistState from '@/store/search/songlist/state'
 import { getSearchSetting, saveSearchSetting } from '@/utils/data'
@@ -24,13 +25,24 @@ export default () => {
   const layoutHeightRef = useRef<number>(0)
   const searchInfo = useRef<SearchInfo>({ temp_source: 'kw', source: 'kw', searchType: 'music' })
   const timeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const [hasSearchText, setHasSearchText] = useState(Boolean(searchState.searchText.trim()))
 
   useEffect(() => {
     void getSearchSetting().then(info => {
+      const initialText = searchState.searchText.trim()
+      if (initialText !== searchState.searchText) {
+        searchAction.setSearchText(initialText)
+      }
+      const initialHasText = Boolean(initialText)
+      const initialType: SearchType = initialHasText ? info.type : 'music'
       searchInfo.current.temp_source = info.temp_source
       searchInfo.current.source = info.source
-      searchInfo.current.searchType = info.type
-      switch (info.type) {
+      searchInfo.current.searchType = initialType
+      setHasSearchText(initialHasText)
+      if (!initialHasText && info.type !== 'music') {
+        void saveSearchSetting({ type: 'music' })
+      }
+      switch (initialType) {
         case 'music':
           headerBarRef.current?.setSourceList(searchMusicState.sources, info.source)
           break
@@ -38,8 +50,8 @@ export default () => {
           headerBarRef.current?.setSourceList(searchSonglistState.sources, info.source)
           break
       }
-      headerBarRef.current?.setText(searchState.searchText)
-      listRef.current?.loadList(searchState.searchText, searchInfo.current.source, searchInfo.current.searchType)
+      headerBarRef.current?.setText(initialText)
+      listRef.current?.loadList(initialText, searchInfo.current.source, initialType)
     })
 
     const handleTypeChange = (type: SearchType) => {
@@ -53,7 +65,7 @@ export default () => {
           headerBarRef.current?.setSourceList(searchSonglistState.sources, searchInfo.current.source)
           break
       }
-      listRef.current?.loadList(searchState.searchText, searchInfo.current.source, type)
+      listRef.current?.loadList(searchState.searchText.trim(), searchInfo.current.source, type)
     }
     global.app_event.on('searchTypeChanged', handleTypeChange)
 
@@ -69,7 +81,7 @@ export default () => {
   const handleSourceChange: HeaderBarProps['onSourceChange'] = (source) => {
     searchInfo.current.source = source
     void saveSearchSetting({ source })
-    listRef.current?.loadList(searchState.searchText, source, searchInfo.current.searchType)
+    listRef.current?.loadList(searchState.searchText.trim(), source, searchInfo.current.searchType)
   }
   const handleTipSearch: HeaderBarProps['onTipSearch'] = (text) => {
     setTimeout(() => {
@@ -84,12 +96,25 @@ export default () => {
     searchTipListRef.current?.hide()
   }
   const handleSearch: HeaderBarProps['onSearch'] = (text) => {
+    const trimmed = text.trim()
     handleHideTipList()
-    searchTipListRef.current?.search(text, layoutHeightRef.current)
-    headerBarRef.current?.setText(text)
+    searchAction.setSearchText(trimmed)
+    searchTipListRef.current?.search(trimmed, layoutHeightRef.current)
+    headerBarRef.current?.setText(trimmed)
     headerBarRef.current?.blur()
-    void addHistoryWord(text)
-    listRef.current?.loadList(text, searchInfo.current.source, searchInfo.current.searchType)
+    if (!trimmed) {
+      setHasSearchText(false)
+      if (searchInfo.current.searchType !== 'music') {
+        searchInfo.current.searchType = 'music'
+        void saveSearchSetting({ type: 'music' })
+        headerBarRef.current?.setSourceList(searchMusicState.sources, searchInfo.current.source)
+      }
+      listRef.current?.loadList('', searchInfo.current.source, 'music')
+      return
+    }
+    setHasSearchText(true)
+    void addHistoryWord(trimmed)
+    listRef.current?.loadList(trimmed, searchInfo.current.source, searchInfo.current.searchType)
   }
   const handleShowTipList: HeaderBarProps['onShowTipList'] = () => {
     if (timeoutRef.current) clearTimeout(timeoutRef.current)
@@ -108,7 +133,7 @@ export default () => {
         onHideTipList={handleHideTipList}
         onShowTipList={handleShowTipList}
       />
-      <SearchTypeSelector />
+      {hasSearchText ? <SearchTypeSelector /> : null}
       <View style={styles.content} onLayout={handleLayout}>
         <TipList ref={searchTipListRef} onSearch={handleSearch} />
         <List ref={listRef} onSearch={handleSearch} />

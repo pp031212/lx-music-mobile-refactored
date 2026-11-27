@@ -5,6 +5,7 @@ import CheckBox from './Checkbox'
 import { createStyle, tipDialog } from '@/utils/tools'
 import { scaleSizeH, scaleSizeW } from '@/utils/pixelRatio'
 import { useTheme } from '@/store/theme/hook'
+import { BorderWidths } from '@/theme'
 import Text from '../Text'
 import { Icon } from '../Icon'
 
@@ -48,9 +49,9 @@ export default ({ check, label, children, onChange, helpTitle, helpDesc, disable
   }, [check, need, isDisabled])
 
   const handleLabelPress = useCallback(() => {
-    if (isDisabled) return
+    if (isDisabled || disabled) return
     onChange?.(!check)
-  }, [isDisabled, onChange, check])
+  }, [isDisabled, disabled, onChange, check])
 
   const helpComponent = useMemo(() => {
     const handleShowHelp = () => {
@@ -62,11 +63,38 @@ export default ({ check, label, children, onChange, helpTitle, helpDesc, disable
     }
     return (helpTitle ?? helpDesc) ? (
       <TouchableOpacity style={styles.helpBtn} onPress={handleShowHelp}>
-        <Icon size={15 * size} name="help" />
+        <Icon size={15 * size} name="help" color={theme['c-font-label']} />
       </TouchableOpacity>
     ) : null
-  }, [helpTitle, helpDesc, size])
+  }, [helpTitle, helpDesc, size, theme])
 
+  // Render radio-style single-select options (need=true) as modern mobile choice chips
+  if (need && label && !children) {
+    return (
+      <View style={{ ...styles.chipWrap, marginRight: scaleSizeW(marginRight || 8), marginBottom: scaleSizeH(marginBottom || 8) }}>
+        <TouchableOpacity
+          activeOpacity={check || disabled ? 1 : 0.72}
+          disabled={disabled || isDisabled}
+          onPress={handleLabelPress}
+          style={{
+            ...styles.chip,
+            backgroundColor: check ? theme['c-primary-alpha-900'] : theme['c-primary-input-background'],
+            borderColor: check ? theme['c-primary'] : 'transparent',
+            opacity: disabled ? 0.5 : 1,
+          }}
+        >
+          <Text
+            size={13 * size}
+            color={check ? theme['c-primary-font-active'] : theme['c-font']}
+            style={check ? styles.chipActiveText : styles.chipText}
+          >
+            {label}
+          </Text>
+        </TouchableOpacity>
+        {helpComponent}
+      </View>
+    )
+  }
 
   const contentStyle = { ...styles.content, marginBottom: scaleSizeH(marginBottom) }
   const labelStyle = { ...styles.label, marginRight: scaleSizeW(marginRight) }
@@ -99,27 +127,40 @@ const styles = createStyle({
     marginRight: 15,
     alignItems: 'center',
     flexDirection: 'row',
-    // backgroundColor: 'rgba(0,0,0,0.2)',
   },
   checkbox: {
     flex: 0,
-    // backgroundColor: 'rgba(0,0,0,0.2)',
   },
   label: {
     flexGrow: 0,
     flexShrink: 1,
-    // marginRight: 15,
-    // alignItems: 'center',
-    // backgroundColor: 'rgba(0,0,0,0.2)',
     paddingRight: 3,
   },
   name: {
     marginTop: 2,
   },
   helpBtn: {
-    // backgroundColor: 'rgba(0, 0, 0, 0.2)',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
+    paddingLeft: 5,
+    paddingRight: 5,
+    paddingTop: 2,
+    paddingBottom: 2,
+  },
+  chipWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  chip: {
+    paddingHorizontal: 13,
+    paddingVertical: 6,
+    borderRadius: 16,
+    borderWidth: BorderWidths.normal,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  chipText: {
+    fontWeight: '400',
+  },
+  chipActiveText: {
+    fontWeight: '500',
   },
 })
-

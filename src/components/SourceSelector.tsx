@@ -22,6 +22,7 @@ export const SOURCE_ICONS: Partial<Record<LX.OnlineSource | 'all', ImageSourcePr
 export interface SourceSelectorProps<S extends Sources> {
   fontSize?: number
   center?: _DorpDownMenuProps<any>['center']
+  compactIconOnly?: boolean
   onSourceChange: (source: S[number]) => void
 }
 
@@ -38,7 +39,7 @@ export const useSourceListI18n = (list: Sources) => {
   }, [list, sourceNameType, t])
 }
 
-const Component = <S extends Sources>({ fontSize = 15, center, onSourceChange }: SourceSelectorProps<S>, ref: Ref<SourceSelectorType<S>>) => {
+const Component = <S extends Sources>({ fontSize = 15, center, compactIconOnly = true, onSourceChange }: SourceSelectorProps<S>, ref: Ref<SourceSelectorType<S>>) => {
   const sourceNameType = useSettingValue('common.sourceNameType')
   const theme = useTheme()
   const [list, setList] = useState([] as unknown as S)
@@ -62,6 +63,7 @@ const Component = <S extends Sources>({ fontSize = 15, center, onSourceChange }:
   }
 
   const activeIcon = SOURCE_ICONS[source]
+  const showIconOnly = compactIconOnly && Boolean(activeIcon)
 
   return (
     <DorpDownMenu
@@ -71,10 +73,29 @@ const Component = <S extends Sources>({ fontSize = 15, center, onSourceChange }:
       fontSize={fontSize}
       activeId={source}
     >
-      <View style={{ ...styles.sourceMenu, justifyContent: center ? 'center' : 'flex-start' }}>
-        {activeIcon ? <Image source={activeIcon} style={styles.sourceIcon} resizeMode="contain" /> : null}
-        <Text style={{ textAlign: center ? 'center' : 'left' }} numberOfLines={1} size={fontSize}>{t(`source_${sourceNameType}_${source}`)}</Text>
-        <Text style={styles.dropdownTriangle} size={11} color={theme['c-font-label']}>▾</Text>
+      <View
+        style={{
+          ...(showIconOnly ? styles.sourceMenuCompact : styles.sourceMenu),
+          justifyContent: center ? 'center' : 'flex-start',
+        }}
+      >
+        {activeIcon ? (
+          <Image
+            source={activeIcon}
+            style={showIconOnly ? styles.sourceIconCompact : styles.sourceIcon}
+            resizeMode="contain"
+          />
+        ) : null}
+        {!showIconOnly ? (
+          <Text
+            style={{ textAlign: center ? 'center' : 'left' }}
+            numberOfLines={1}
+            size={compactIconOnly ? 13 : fontSize}
+          >
+            {t(`source_${sourceNameType}_${source}`)}
+          </Text>
+        ) : null}
+        <Text style={styles.dropdownTriangle} size={13} color={theme['c-font-label']}>▾</Text>
       </View>
     </DorpDownMenu>
   )
@@ -91,14 +112,26 @@ const styles = createStyle({
     paddingLeft: 12,
     paddingRight: 10,
   },
+  sourceMenuCompact: {
+    height: '100%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingLeft: 8,
+    paddingRight: 6,
+  },
   sourceIcon: {
     width: 16,
     height: 16,
     borderRadius: 3,
     marginRight: 5,
   },
+  sourceIconCompact: {
+    width: 18,
+    height: 18,
+    borderRadius: 4,
+  },
   dropdownTriangle: {
     marginLeft: 4,
-    lineHeight: 14,
+    lineHeight: 16,
   },
 })

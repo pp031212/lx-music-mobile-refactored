@@ -14,7 +14,18 @@ export interface DownloadSnapshot {
 
 export interface Transfer {
   cancel: () => void
-  promise: Promise<{ statusCode: number, bytesWritten: number }>
+  promise: Promise<TransferResult>
+}
+
+export interface TransferResult {
+  statusCode: number
+  bytesWritten: number
+  total?: number
+}
+
+export interface PartialDownload {
+  written: number
+  total: number
 }
 
 export interface DownloadDependencies {
@@ -22,6 +33,8 @@ export interface DownloadDependencies {
   save: (snapshot: DownloadSnapshot) => Promise<void>
   getUrl: (task: LX.Download.ListItem, refresh: boolean) => Promise<string>
   download: (url: string, path: string, progress: (written: number, total: number) => void) => Transfer
+  readPartial: (path: string) => Promise<PartialDownload | null>
+  discardPartial: (path: string) => Promise<void>
   exists: (path: string) => Promise<boolean>
   unlink: (path: string) => Promise<void>
   prepare: () => Promise<void>
@@ -122,6 +135,7 @@ export class DownloadManager {
           task.isComplate = false
           task.statusText = this.deps.message('download_file_missing')
         }
+        if (task.status != 'completed') await this.restoreProgress(task, this.deps.temporaryPath(task.id)).catch(this.deps.onError)
       }
     }
     this.changed(true)
@@ -230,7 +244,7 @@ export class DownloadManager {
         const lrc = task.metadata.lyricPath
         if (lrc && await this.deps.exists(lrc)) await this.deps.unlink(lrc)
       }
-      await this.deps.unlink(this.deps.temporaryPath(id))
+      await this.deps.discardPartial(this.deps.temporaryPath(id))
       this.tasks = this.tasks.filter(task => task.id != id)
       this.changed(true)
     } finally {
@@ -251,6 +265,18 @@ export class DownloadManager {
     }
   }
 
+  private async restoreProgress(task: LX.Download.ListItem, path: string) {
+    const partial = await this.deps.readPartial(path)
+    if (!partial) await this.deps.discardPartial(path).catch(this.deps.onError)
+    this.setProgress(task, partial?.written ?? 0, partial?.total ?? 0)
+  }
+
+  private setProgress(task: LX.Download.ListItem, written: number, total: number) {
+    task.downloaded = written
+    task.total = Math.max(0, total)
+    task.progress = total > 0 ? Math.min(99.9, written / total * 100) : 0
+  }
+
   private async run(task: LX.Download.ListItem, context: RunningTask) {
     const temporaryPath = this.deps.temporaryPath(task.id)
     const settings = { ...this.settings }
@@ -266,23 +292,16 @@ export class DownloadManager {
           if (!active()) return
           if (!/^https?:\/\//i.test(url)) throw new Error(this.deps.message('download_invalid_url'))
           task.metadata.url = url
-          await this.deps.unlink(temporaryPath)
-          if (!active()) return
-          task.downloaded = 0
-          task.total = 0
-          task.progress = 0
           task.statusText = ''
           this.changed()
           let previousTime = Date.now()
-          let previousBytes = 0
+          let previousBytes = task.downloaded
           const transfer = this.deps.download(url, temporaryPath, (written, total) => {
             if (!active()) return
             // Always retain totals, even when UI notifications are throttled.
-            task.downloaded = written
-            task.total = total
-            task.progress = total > 0 ? Math.min(99.9, written / total * 100) : 0
+            this.setProgress(task, written, total)
             const now = Date.now()
-            if (now - previousTime < 500 && written != total) return
+            if (written >= previousBytes && now - previousTime < 500 && written != total) return
             task.speed = `${Math.max(0, (written - previousBytes) * 1000 / Math.max(1, now - previousTime) / 1024).toFixed(1)} KB/s`
             previousTime = now
             previousBytes = written
@@ -293,7 +312,8 @@ export class DownloadManager {
           const result = await transfer.promise
           context.cancel = undefined
           if (!active()) return
-          if (result.statusCode < 200 || result.statusCode >= 300 || !result.bytesWritten || (task.total > 0 && result.bytesWritten != task.total)) {
+          const total = result.total ?? task.total
+          if (result.statusCode < 200 || result.statusCode >= 300 || result.bytesWritten <= 0 || (total > 0 && result.bytesWritten != total)) {
             throw new Error(`HTTP ${result.statusCode}: ${this.deps.message('download_incomplete')}`)
           }
           // Do not retry publication/tagging failures by downloading the whole song again.
@@ -319,13 +339,18 @@ export class DownloadManager {
       }
     } catch (error) {
       if (active()) {
-        task.status = 'error'
+          task.status = 'error'
         task.speed = ''
         task.statusText = error instanceof Error ? error.message : String(error)
         this.changed()
       }
     } finally {
-      await this.deps.unlink(temporaryPath).catch(this.deps.onError)
+      if (task.status == 'completed') {
+        await this.deps.discardPartial(temporaryPath).catch(this.deps.onError)
+      } else {
+        await this.restoreProgress(task, temporaryPath).catch(this.deps.onError)
+        this.changed()
+      }
       this.running.delete(task.id)
       this.schedule()
     }

@@ -69,10 +69,28 @@ export default {
     return raw
   },
   filterComment(rawList) {
-    return rawList.map(item => {
-      let data = {
+    if (!Array.isArray(rawList) || !rawList.length) return []
+
+    // Count standalone comments per (userId|userName|text) key so we only link a reply
+    // to a standalone comment when the match is unambiguous (count === 1).
+    const standaloneCounts = new Map()
+    for (const item of rawList) {
+      if (item.pcontent) continue
+      const text = decodeName((item.atlist ? this.replaceAt(item.content, item.atlist) : item.content) || '')
+      const key = `${item.user_id ?? ''}|${item.user_name ?? ''}|${text}`
+      standaloneCounts.set(key, (standaloneCounts.get(key) || 0) + 1)
+    }
+
+    const quotedParents = new Map()
+    const standaloneByKey = new Map()
+    const enrichedParents = new Set()
+    const result = []
+
+    for (const item of rawList) {
+      const text = decodeName((item.atlist ? this.replaceAt(item.content, item.atlist) : item.content) || '')
+      const data = {
         id: item.id,
-        text: decodeName((item.atlist ? this.replaceAt(item.content, item.atlist) : item.content) || ''),
+        text,
         images: item.images ? item.images.map(i => i.url) : [],
         location: item.location,
         time: item.addtime,
@@ -85,19 +103,64 @@ export default {
         reply: [],
       }
 
-      return item.pcontent
-        ? {
-            id: item.id,
-            text: decodeName(item.pcontent),
-            time: null,
-            userName: item.puser,
-            avatar: null,
-            userId: item.puser_id,
-            likedCount: null,
-            replyNum: null,
-            reply: [data],
+      if (item.pcontent) {
+        const parentText = decodeName(item.pcontent)
+        const parentKey = `${item.puser_id ?? ''}|${item.puser ?? ''}|${parentText}`
+        const isUniqueParent = (standaloneCounts.get(parentKey) || 0) === 1
+        const existing = quotedParents.get(parentKey)
+        if (existing) {
+          if (!existing.reply.some(r => String(r.id) === String(data.id))) {
+            existing.reply.push(data)
           }
-        : data
-    })
+          continue
+        }
+        if (isUniqueParent) {
+          const standalone = standaloneByKey.get(parentKey)
+          if (standalone) {
+            if (!standalone.reply.some(r => String(r.id) === String(data.id))) {
+              standalone.reply.push(data)
+            }
+            quotedParents.set(parentKey, standalone)
+            enrichedParents.add(parentKey)
+            continue
+          }
+        }
+        const entry = {
+          id: item.id,
+          text: parentText,
+          time: null,
+          userName: item.puser,
+          avatar: null,
+          userId: item.puser_id,
+          likedCount: null,
+          replyNum: null,
+          reply: [data],
+        }
+        quotedParents.set(parentKey, entry)
+        result.push(entry)
+      } else {
+        const parentKey = `${item.user_id ?? ''}|${item.user_name ?? ''}|${text}`
+        const isUniqueParent = (standaloneCounts.get(parentKey) || 0) === 1
+        if (isUniqueParent) {
+          const quoted = quotedParents.get(parentKey)
+          if (quoted && !enrichedParents.has(parentKey)) {
+            enrichedParents.add(parentKey)
+            if (!quoted.timeStr && data.timeStr) {
+              quoted.time = data.time
+              quoted.timeStr = data.timeStr
+            }
+            if (quoted.likedCount == null && data.likedCount != null) quoted.likedCount = data.likedCount
+            if (!quoted.avatar && data.avatar) quoted.avatar = data.avatar
+            if (!quoted.location && data.location) quoted.location = data.location
+            if (quoted.replyNum == null && data.replyNum != null) quoted.replyNum = data.replyNum
+            continue
+          }
+          standaloneByKey.set(parentKey, data)
+        }
+        result.push(data)
+      }
+    }
+
+    return result
   },
 }

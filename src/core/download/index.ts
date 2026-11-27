@@ -1,14 +1,20 @@
-import { AppState } from 'react-native'
+import { AppState, DeviceEventEmitter, NativeModules } from 'react-native'
 import { getData, saveData } from '@/plugins/storage'
 import { storageDataPrefix } from '@/config/constant'
 import { downloadFile, stopDownload, existsFile, unlink, mkdir, stat, copyFile, writeFile, privateStorageDirectoryPath, readDir } from '@/utils/fs'
 import { getMusicUrl, getLyricInfo } from '@/core/music/online'
 import { writeMetadata, writeLyric } from '@/utils/localMediaMetadata'
 import { log } from '@/utils/log'
-import { DownloadManager, type DownloadSnapshot, type DownloadSettings } from './manager'
+import { DownloadManager, type DownloadSnapshot, type DownloadSettings, type PartialDownload, type TransferResult } from './manager'
 
 export const DEFAULT_DOWNLOAD_DIRECTORY = `${privateStorageDirectoryPath}/downloads`
 const stagingDirectory = `${privateStorageDirectoryPath}/download-tasks`
+const resumableDownload = NativeModules.ResumableDownloadModule as {
+  inspect: (path: string) => Promise<PartialDownload | null>
+  start: (id: number, url: string, path: string) => Promise<TransferResult>
+  cancel: (id: number) => void
+} | undefined
+let transferId = 0
 
 const removeFile = async(path: string) => {
   if (await existsFile(path)) await unlink(path)
@@ -32,10 +38,17 @@ const reportError = (error: unknown) => {
 export const downloadManager: DownloadManager = new DownloadManager({
   load: async() => {
     const saved = await getData<DownloadSnapshot>(storageDataPrefix.download)
-    // Temporary files are never treated as complete after an interrupted app process.
     if (await existsFile(stagingDirectory)) {
+      const unfinishedFiles = new Set<string>()
+      for (const task of saved?.tasks ?? []) {
+        if (task.status == 'completed') continue
+        unfinishedFiles.add(`${task.id}.part`)
+        unfinishedFiles.add(`${task.id}.part.resume`)
+      }
       const files = await readDir(stagingDirectory).catch(() => [])
-      for (const file of files) if (file.isFile) await removeFile(file.path).catch(reportError)
+      for (const file of files) {
+        if (file.isFile && !unfinishedFiles.has(file.name)) await removeFile(file.path).catch(reportError)
+      }
     }
     return saved
   },
@@ -52,12 +65,24 @@ export const downloadManager: DownloadManager = new DownloadManager({
     })), 30_000)
   },
   download: (url, path, progress) => {
+    if (resumableDownload) {
+      const id = ++transferId
+      const listener = DeviceEventEmitter.addListener('audio-download-progress', (event: PartialDownload & { id: number }) => {
+        if (event.id == id) progress(event.written, event.total)
+      })
+      return {
+        cancel: () => { resumableDownload.cancel(id) },
+        promise: resumableDownload.start(id, url, path).finally(() => { listener.remove() }),
+      }
+    }
     let invalidContent = false
+    let total = 0
     const job = downloadFile(url, path, {
       connectionTimeout: 15_000,
       readTimeout: 30_000,
       progressInterval: 500,
       begin: ({ contentLength, headers }) => {
+        total = contentLength
         const contentType = Object.entries(headers).find(([key]) => key.toLowerCase() == 'content-type')?.[1] ?? ''
         invalidContent = /text\/html|application\/(?:\w+\+)?json/i.test(String(contentType))
         progress(0, contentLength)
@@ -68,9 +93,14 @@ export const downloadManager: DownloadManager = new DownloadManager({
       cancel: () => { stopDownload(job.jobId) },
       promise: job.promise.then(result => {
         if (invalidContent) throw new Error(global.i18n.t('download_incomplete'))
-        return result
+        return { ...result, total }
       }),
     }
+  },
+  readPartial: async path => resumableDownload?.inspect(path) ?? null,
+  discardPartial: async path => {
+    await removeFile(`${path}.resume`)
+    await removeFile(path)
   },
   exists: existsFile,
   unlink: removeFile,

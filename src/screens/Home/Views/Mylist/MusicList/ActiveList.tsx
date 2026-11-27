@@ -13,7 +13,6 @@ import Text from '@/components/common/Text'
 import { LIST_IDS } from '@/config/constant'
 import Loading from '@/components/common/Loading'
 import { useSettingValue } from '@/store/setting/hook'
-import { useI18n } from '@/lang'
 
 export interface ActiveListProps {
   onShowSearchBar: () => void
@@ -26,7 +25,6 @@ export interface ActiveListType {
 
 export default forwardRef<ActiveListType, ActiveListProps>(({ onShowSearchBar, onScrollToTop, onBackToOverview }, ref) => {
   const theme = useTheme()
-  const t = useI18n()
   const currentListId = useActiveListId()
   const fetching = useListFetching(currentListId)
   const langId = useSettingValue('common.langId')
@@ -56,10 +54,6 @@ export default forwardRef<ActiveListType, ActiveListProps>(({ onShowSearchBar, o
     else global.app_event.changeLoveListVisible(true)
   }
 
-  const jumpToPlaying = () => {
-    global.app_event.jumpListPosition()
-  }
-
   useEffect(() => {
     if (listState.activeListId) return
     void getListPrevSelectId().then((id) => {
@@ -70,20 +64,13 @@ export default forwardRef<ActiveListType, ActiveListProps>(({ onShowSearchBar, o
   return (
     <View style={{ ...styles.currentList, opacity: visibleBar ? 1 : 0, borderBottomColor: theme['c-border-background'] }}>
       <TouchableOpacity style={styles.backBtn} activeOpacity={0.65} onPress={handleBack}>
-        <Icon name="chevron-left" size={16} color={theme['c-primary-font-active']} />
-        <Text style={styles.backText} size={14} color={theme['c-primary-font-active']}>
-          {t('nav_love')}
-        </Text>
+        <Icon name="chevron-left" size={18} color={theme['c-font']} />
       </TouchableOpacity>
-      <View style={{ ...styles.divider, backgroundColor: theme['c-border-background'] }} />
       {fetching ? <Loading color={theme['c-primary-font-active']} style={styles.loading} /> : null}
       <TouchableOpacity style={styles.titleWrap} activeOpacity={1} onLongPress={onScrollToTop}>
         <Text style={styles.currentListText} size={15} numberOfLines={1} color={theme['c-font']}>
           {currentListName}
         </Text>
-      </TouchableOpacity>
-      <TouchableOpacity style={styles.currentListBtns} onPress={jumpToPlaying}>
-        <Icon color={theme['c-font-label']} name="play-outline" size={16} />
       </TouchableOpacity>
       <TouchableOpacity style={styles.currentListBtns} onPress={onShowSearchBar}>
         <Icon color={theme['c-font-label']} name="search-2" size={16} />
@@ -101,21 +88,10 @@ const styles = createStyle({
     borderBottomWidth: BorderWidths.normal,
   },
   backBtn: {
+    width: 44,
     height: '100%',
-    flexDirection: 'row',
+    justifyContent: 'center',
     alignItems: 'center',
-    paddingLeft: 12,
-    paddingRight: 8,
-  },
-  backText: {
-    marginLeft: 3,
-    fontWeight: '500',
-  },
-  divider: {
-    width: 1,
-    height: 16,
-    marginLeft: 2,
-    marginRight: 10,
   },
   titleWrap: {
     flex: 1,

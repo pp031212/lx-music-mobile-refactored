@@ -36,57 +36,60 @@ export default () => {
 
   return (
     <View style={{ ...styles.wrapper, borderBottomColor: theme['c-border-background'] }}>
-      <View style={{ ...styles.segmentedTrack, backgroundColor: theme['c-primary-input-background'] }}>
-        {list.map(item => {
-          const isActive = type === item.id
-          return (
-            <TouchableOpacity
-              key={item.id}
-              activeOpacity={0.75}
-              onPress={() => handleTypeChange(item.id)}
-              style={{
-                ...styles.segmentItem,
-                backgroundColor: isActive ? theme['c-content-background'] : 'transparent',
-                elevation: isActive ? 2 : 0,
-              }}
+      {list.map(item => {
+        const isActive = type === item.id
+        return (
+          <TouchableOpacity
+            key={item.id}
+            activeOpacity={0.7}
+            accessibilityRole="tab"
+            accessibilityState={{ selected: isActive }}
+            onPress={() => handleTypeChange(item.id)}
+            style={styles.tabItem}
+          >
+            <Text
+              size={14}
+              style={isActive ? styles.activeText : styles.inactiveText}
+              color={isActive ? theme['c-primary-font-active'] : theme['c-font-label']}
             >
-              <Text
-                size={13}
-                style={isActive ? styles.activeText : styles.inactiveText}
-                color={isActive ? theme['c-primary-font-active'] : theme['c-font-label']}
-              >
-                {item.label}
-              </Text>
-            </TouchableOpacity>
-          )
-        })}
-      </View>
+              {item.label}
+            </Text>
+            {isActive ? (
+              <View style={{ ...styles.indicator, backgroundColor: theme['c-primary'] }} />
+            ) : null}
+          </TouchableOpacity>
+        )
+      })}
     </View>
   )
 }
 
 const styles = createStyle({
   wrapper: {
-    paddingHorizontal: 12,
-    paddingBottom: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    height: 34,
+    paddingHorizontal: 16,
+    gap: 22,
     borderBottomWidth: BorderWidths.normal,
   },
-  segmentedTrack: {
-    flexDirection: 'row',
-    height: 36,
-    borderRadius: 10,
-    padding: 3,
-  },
-  segmentItem: {
-    flex: 1,
-    borderRadius: 8,
+  tabItem: {
+    height: '100%',
     justifyContent: 'center',
     alignItems: 'center',
+    position: 'relative',
   },
   activeText: {
-    fontWeight: '500',
+    fontWeight: '700',
   },
   inactiveText: {
     fontWeight: '400',
+  },
+  indicator: {
+    position: 'absolute',
+    bottom: 0,
+    width: 18,
+    height: 2.5,
+    borderRadius: 1.5,
   },
 })

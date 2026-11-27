@@ -8,7 +8,6 @@ import { useI18n } from '@/lang'
 import { useTheme } from '@/store/theme/hook'
 import { BorderWidths } from '@/theme'
 import { createStyle } from '@/utils/tools'
-import settingStyles from './style'
 
 const formatTime = (time: number) => {
   const h = Math.trunc(time / 3600)
@@ -35,13 +34,13 @@ export default () => {
     : t('timeout_exit_tip_off')
 
   return (
-    <View style={settingStyles.container}>
+    <View style={localStyles.container}>
       <TouchableOpacity
         activeOpacity={0.7}
         onPress={handleShow}
         style={{
           ...localStyles.row,
-          backgroundColor: theme['c-primary-input-background'],
+          backgroundColor: theme['c-main-background'],
           borderColor: timeInfo.active ? theme['c-primary-alpha-600'] : theme['c-border-background'],
         }}
       >
@@ -67,12 +66,15 @@ export default () => {
 }
 
 const localStyles = createStyle({
+  container: {
+    marginBottom: 12,
+  },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 11,
-    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderRadius: 12,
     borderWidth: BorderWidths.normal,
   },
   leftIcon: {

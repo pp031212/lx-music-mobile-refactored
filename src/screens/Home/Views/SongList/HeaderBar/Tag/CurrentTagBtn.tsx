@@ -37,7 +37,7 @@ export default forwardRef<CurrentTagBtnType, CurrentTagBtnProps>(({ onShowList }
       onPress={onShowList}
     >
       <Text size={13} numberOfLines={1} style={styles.tagText}>{name}</Text>
-      <Text size={11} color={theme['c-font-label']} style={styles.dropdownTriangle}>▾</Text>
+      <Text size={13} color={theme['c-font-label']} style={styles.dropdownTriangle}>▾</Text>
     </Button>
   )
 })
@@ -60,6 +60,6 @@ const styles = createStyle({
   },
   dropdownTriangle: {
     marginLeft: 4,
-    lineHeight: 14,
+    lineHeight: 16,
   },
 })

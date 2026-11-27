@@ -1,7 +1,6 @@
 import { memo, useRef, useState, useEffect } from 'react'
 import { View } from 'react-native'
 import { getLogs, clearLogs } from '@/utils/log'
-// import { gzip, ungzip } from 'pako'
 
 import SubTitle from '../../components/SubTitle'
 import Button from '../../components/Button'
@@ -23,7 +22,6 @@ export default memo(() => {
     void getLogs().then(log => {
       if (isUnmountedRef.current) return
       const logArr = log.split(/^----lx log----\n|\n----lx log----\n|\n----lx log----$/)
-      // console.log(logArr)
       logArr.reverse()
       setLogText(logArr.join('\n\n').replace(/^\n+|\n+$/, ''))
     })
@@ -51,7 +49,6 @@ export default memo(() => {
     global.lx.isEnableUserApiLog = enable
   }
 
-
   useEffect(() => {
     isUnmountedRef.current = false
     return () => {
@@ -63,8 +60,8 @@ export default memo(() => {
     <>
       <SubTitle title={t('setting_other_log')}>
         <View style={styles.checkBox}>
-          <CheckBoxItem check={isEnableSyncErrorLog} label={t('setting_other_log_sync_log')} onChange={handleSetEnableSyncErrorLog} />
-          <CheckBoxItem check={isEnableUserApiLog} label={t('setting_other_log_user_api_log')} onChange={handleSetEnableUserApiLog} />
+          <CheckBoxItem flat check={isEnableSyncErrorLog} label={t('setting_other_log_sync_log')} onChange={handleSetEnableSyncErrorLog} />
+          <CheckBoxItem flat check={isEnableUserApiLog} label={t('setting_other_log_user_api_log')} onChange={handleSetEnableUserApiLog} />
         </View>
         <View style={styles.btn}>
           <Button onPress={openLogModal}>{t('setting_other_log_btn_show')}</Button>
@@ -77,7 +74,7 @@ export default memo(() => {
         onConfirm={handleCleanLog}
         showConfirm={!!logText}
         reverseBtn={true}
-        >
+      >
         <View onStartShouldSetResponder={() => true}>
           {
             logText
@@ -92,9 +89,7 @@ export default memo(() => {
 
 const styles = createStyle({
   checkBox: {
-    // paddingTop: 10,
-    paddingBottom: 15,
-    marginLeft: -25,
+    marginBottom: 12,
   },
   btn: {
     flexDirection: 'row',

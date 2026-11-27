@@ -1,7 +1,6 @@
 import { useMemo, useRef, useState, forwardRef, useImperativeHandle } from 'react'
 import { FlatList, type FlatListProps, RefreshControl, View } from 'react-native'
 
-// import { useMusicList } from '@/store/list/hook'
 import CommentFloor from './CommentFloor'
 import { createStyle } from '@/utils/tools'
 import { useTheme } from '@/store/theme/hook'
@@ -26,20 +25,19 @@ const List = forwardRef<ListType, ListProps>(({
   onRefresh,
   onLoadMore,
 }, ref) => {
-  // const t = useI18n()
   const theme = useTheme()
   const flatListRef = useRef<FlatList>(null)
-  const [currentList, setList] = useState<Comment[]>([])
+  const [currentList, setListState] = useState<Comment[]>([])
+  const currentListRef = useRef<Comment[]>([])
   const [status, setStatus] = useState<Status>('idle')
-  // const currentListIdRef = useRef('')
-  // console.log('render comment list')
 
   useImperativeHandle(ref, () => ({
     setList(list) {
-      setList(list)
+      currentListRef.current = list
+      setListState(list)
     },
     getList() {
-      return currentList
+      return currentListRef.current
     },
     setStatus(val) {
       setStatus(val)
@@ -53,12 +51,11 @@ const List = forwardRef<ListType, ListProps>(({
 
   const renderItem: FlatListType['renderItem'] = ({ item }) => <CommentFloor comment={item} />
 
-  const getkey: FlatListType['keyExtractor'] = item => item.id
+  const getkey: FlatListType['keyExtractor'] = (item, index) => (item.id != null ? String(item.id) : `c_${index}`)
 
   const refreshControl = useMemo(() => (
     <RefreshControl
       colors={[theme['c-primary']]}
-      // progressBackgroundColor={theme.primary}
       refreshing={status == 'refreshing'}
       onRefresh={onRefresh} />
   ), [status, onRefresh, theme])
@@ -88,15 +85,9 @@ const List = forwardRef<ListType, ListProps>(({
       style={styles.list}
       data={currentList}
       onEndReachedThreshold={0.5}
-      // maxToRenderPerBatch={4}
-      // updateCellsBatchingPeriod={80}
-      // windowSize={8}
       removeClippedSubviews={false}
-      // initialNumToRender={12}
       renderItem={renderItem}
       keyExtractor={getkey}
-      // onRefresh={onRefresh}
-      // refreshing={refreshing}
       onEndReached={handleLoadMore}
       refreshControl={refreshControl}
       ListFooterComponent={footerComponent}

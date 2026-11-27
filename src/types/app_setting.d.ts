@@ -47,11 +47,6 @@ declare global {
       'common.drawerLayoutPosition': 'left' | 'right'
 
       /**
-       * 启用首页滑动
-       */
-      'common.homePageScroll': boolean
-
-      /**
        * 允许通过底栏进度条调整进度
        */
       'common.allowProgressBarSeek': boolean
@@ -170,6 +165,15 @@ declare global {
        * 是否启用音频卸载功能（这可以节省耗电量，没有播放异常问题不建议关闭）
        */
       'player.isEnableAudioOffload': boolean
+
+      'player.spectrumEnabled': boolean
+      'player.equalizerEnabled': boolean
+      'player.equalizerGains': string
+      'player.equalizerCustomPresets': string
+      'player.pitch': number
+      'player.pannerEnabled': boolean
+      'player.pannerSpeed': number
+      'player.pannerSoundR': number
 
       /**
        * 是否显示歌词翻译

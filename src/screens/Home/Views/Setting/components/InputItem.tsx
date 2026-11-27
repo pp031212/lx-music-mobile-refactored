@@ -5,6 +5,7 @@ import type { InputType, InputProps } from '@/components/common/Input'
 import Input from '@/components/common/Input'
 import { useTheme } from '@/store/theme/hook'
 import Text from '@/components/common/Text'
+import { BorderWidths } from '@/theme'
 
 
 export interface InputItemProps extends InputProps {
@@ -62,8 +63,14 @@ export default memo(({ value, label, onChanged, ...props }: InputItemProps) => {
     textRef.current = text
   }
   return (
-    <View style={styles.container}>
-      <Text style={styles.label} size={14}>{label}</Text>
+    <View
+      style={{
+        ...styles.card,
+        backgroundColor: theme['c-content-background'],
+        borderColor: theme['c-border-background'],
+      }}
+    >
+      <Text style={styles.label} size={13} color={theme['c-font-label']}>{label}</Text>
       <Input
         value={text}
         ref={inputRef}
@@ -71,26 +78,28 @@ export default memo(({ value, label, onChanged, ...props }: InputItemProps) => {
         style={{ ...styles.input, backgroundColor: theme['c-primary-input-background'] }}
         {...props}
         onBlur={saveValue}
-       />
+      />
     </View>
   )
 })
 
 const styles = StyleSheet.create({
-  container: {
-    paddingLeft: 25,
-    marginBottom: 15,
+  card: {
+    borderRadius: 12,
+    borderWidth: BorderWidths.normal,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    marginBottom: 8,
   },
   label: {
-    marginBottom: 2,
+    marginBottom: 6,
+    fontWeight: '500',
   },
   input: {
-    backgroundColor: 'rgba(0,0,0,0.2)',
     flexGrow: 1,
     flexShrink: 1,
-    borderRadius: 4,
-    // paddingTop: 3,
-    // paddingBottom: 3,
-    maxWidth: 300,
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    height: 38,
   },
 })

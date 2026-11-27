@@ -29,6 +29,7 @@ const song = id => ({ id, name: 'same title', singer: 'artist', source: 'kw', in
 function fixture(overrides = {}) {
   const transfers = []
   const files = new Set()
+  const checkpoints = new Map()
   const saved = []
   const urls = []
   const errors = []
@@ -41,6 +42,11 @@ function fixture(overrides = {}) {
     temporaryPath: id => `/tmp/${id}.part`,
     exists: async(file) => files.has(file),
     unlink: async(file) => { files.delete(file) },
+    readPartial: async(file) => checkpoints.get(file) ?? null,
+    discardPartial: async(file) => {
+      checkpoints.delete(file)
+      files.delete(file)
+    },
     download: (url, file, progress) => {
       let resolveTransfer, rejectTransfer
       const promise = new Promise((resolve, reject) => { resolveTransfer = resolve; rejectTransfer = reject })
@@ -56,7 +62,7 @@ function fixture(overrides = {}) {
     ...overrides,
   }
   const manager = new DownloadManager(deps, { directory: '/saved', concurrency: 2, saveLyric: false, embedMetadata: false, allowToggleSource: false })
-  return { manager, transfers, files, saved, urls, errors, changes: () => changes }
+  return { manager, transfers, files, checkpoints, saved, urls, errors, changes: () => changes }
 }
 
 test('bounded concurrency, duplicate suppression, distinct filenames, and completion publishes local files', async() => {
@@ -97,21 +103,55 @@ test('pause while obtaining URL prevents a late response from starting a transfe
   await manager.flush()
 })
 
-test('pause cancels the native job and ignores late progress; restart starts from zero', async() => {
-  const { manager, transfers } = fixture()
+test('pause keeps the checkpoint, ignores late events and resumes from the actual file size', async() => {
+  const { manager, transfers, files, checkpoints } = fixture()
+  await manager.create([song('a')], '128k', 'song')
+  await until(() => transfers.length == 1)
+  transfers[0].progress(50, 100)
+  checkpoints.set(transfers[0].file, { written: 58, total: 100 })
+  await manager.pause([manager.tasks[0].id])
+  const pausedProgress = manager.tasks[0].downloaded
+  transfers[0].progress(99, 100)
+  assert.equal(manager.tasks[0].downloaded, pausedProgress)
+  assert.equal(manager.tasks[0].status, 'pause')
+  assert.ok(transfers[0].cancelled)
+  await until(() => manager.tasks[0].downloaded == 58)
+  assert.ok(files.has(transfers[0].file))
+  await manager.start([manager.tasks[0].id])
+  await until(() => transfers.length == 2)
+  assert.equal(manager.tasks[0].downloaded, 58)
+  assert.equal(transfers[1].file, transfers[0].file)
+  transfers[1].resolve({ statusCode: 206, bytesWritten: 100, total: 100 })
+  await until(() => manager.tasks[0].status == 'completed')
+  await until(() => !checkpoints.has(transfers[0].file))
+  assert.ok(!files.has(transfers[0].file))
+  await manager.flush()
+})
+
+test('pausing a transfer without a validated checkpoint clears the unusable partial', async() => {
+  const { manager, transfers, files } = fixture()
   await manager.create([song('a')], '128k', 'song')
   await until(() => transfers.length == 1)
   transfers[0].progress(50, 100)
   await manager.pause([manager.tasks[0].id])
-  transfers[0].progress(99, 100)
-  assert.equal(manager.tasks[0].downloaded, 50)
+  await until(() => manager.tasks[0].downloaded == 0)
   assert.equal(manager.tasks[0].status, 'pause')
-  assert.ok(transfers[0].cancelled)
-  await manager.start([manager.tasks[0].id])
+  assert.ok(!files.has(transfers[0].file))
+})
+
+test('falling back to a fresh representation accepts its own total', async() => {
+  const { manager, transfers, checkpoints } = fixture()
+  await manager.create([song('a')], '128k', 'song')
+  await until(() => transfers.length == 1)
+  checkpoints.set(transfers[0].file, { written: 40, total: 100 })
+  const { id } = manager.tasks[0]
+  await manager.pause([id])
+  await until(() => manager.tasks[0].downloaded == 40)
+  await manager.start([id])
   await until(() => transfers.length == 2)
-  assert.equal(manager.tasks[0].downloaded, 0)
-  transfers[1].resolve({ statusCode: 200, bytesWritten: 100 })
+  transfers[1].resolve({ statusCode: 200, bytesWritten: 75, total: 75 })
   await until(() => manager.tasks[0].status == 'completed')
+  assert.equal(manager.tasks[0].downloaded, 75)
   await manager.flush()
 })
 
@@ -184,10 +224,18 @@ test('restart restores unfinished jobs paused and marks missing completed files 
   tasks[2].status = 'completed'
   tasks[2].isComplate = true
   tasks[2].metadata.filePath = '/missing/song.mp3'
-  const { manager, transfers } = fixture({ load: async() => ({ tasks, settings: original.manager.settings }) })
+  tasks[1].downloaded = 99
+  tasks[1].total = 100
+  const { manager, transfers } = fixture({
+    load: async() => ({ tasks, settings: original.manager.settings }),
+    readPartial: async(file) => file == `/tmp/${tasks[0].id}.part` ? { written: 64, total: 100 } : null,
+  })
   await manager.init()
   assert.deepEqual(manager.tasks.map(task => task.status), ['pause', 'pause', 'error'])
   assert.equal(manager.tasks[2].isComplate, false)
+  assert.equal(manager.tasks[0].downloaded, 64)
+  assert.equal(manager.tasks[0].progress, 64)
+  assert.equal(manager.tasks[1].downloaded, 0)
   assert.equal(transfers.length, 0)
   await manager.flush()
   await original.manager.flush()

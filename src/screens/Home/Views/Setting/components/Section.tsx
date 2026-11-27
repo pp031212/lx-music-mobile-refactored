@@ -2,6 +2,7 @@ import { View } from 'react-native'
 
 import { createStyle } from '@/utils/tools'
 import { useTheme } from '@/store/theme/hook'
+import { useHorizontalMode } from '@/utils/hooks'
 import Text from '@/components/common/Text'
 
 
@@ -12,10 +13,13 @@ interface Props {
 
 export default ({ title, children }: Props) => {
   const theme = useTheme()
+  const isHorizontalMode = useHorizontalMode()
 
   return (
     <View style={styles.container}>
-      <Text style={{ ...styles.title, borderLeftColor: theme['c-primary'] }} size={16} >{title}</Text>
+      {isHorizontalMode ? (
+        <Text style={{ ...styles.title, borderLeftColor: theme['c-primary'] }} size={16}>{title}</Text>
+      ) : null}
       <View>
         {children}
       </View>
@@ -25,14 +29,10 @@ export default ({ title, children }: Props) => {
 
 
 const styles = createStyle({
-  container: {
-    // paddingLeft: 10,
-    // backgroundColor: 'rgba(0,0,0,0.2)',
-  },
+  container: {},
   title: {
     borderLeftWidth: 5,
     paddingLeft: 12,
     marginBottom: 10,
-    // lineHeight: 16,
   },
 })

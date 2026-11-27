@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef, forwardRef, useImperativeHandle } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { View, ScrollView } from 'react-native'
 
 import { createStyle } from '@/utils/tools'
@@ -7,49 +7,49 @@ import { useI18n } from '@/lang'
 import { type TagInfo, type Source } from '@/store/songlist/state'
 import { getTags } from '@/core/songlist'
 import Text from '@/components/common/Text'
-// import { BorderWidths } from '@/theme'
 
 export interface ListProps {
+  source: Source
+  activeId: string
   onTagChange: TagGroupProps['onTagChange']
 }
 
-export interface ListType {
-  loadTag: (source: Source, activeId: string) => void
-}
-
-export default forwardRef<ListType, ListProps>(({ onTagChange }, ref) => {
-  // const theme = useTheme()
-  const [activeId, setActiveId] = useState('')
+export default ({ source, activeId, onTagChange }: ListProps) => {
   const [list, setList] = useState<TagInfo['tags']>([])
+  const [loading, setLoading] = useState(false)
   const t = useI18n()
   const prevSource = useRef('')
 
-  const isUnmountedRef = useRef(false)
   useEffect(() => {
-    isUnmountedRef.current = false
-    return () => {
-      isUnmountedRef.current = true
+    let cancelled = false
+    if (source == prevSource.current && list.length > 1) return
+
+    const defaultGroup = {
+      name: '',
+      list: [{ name: t('songlist_tag_default'), id: '', parent_id: '', parent_name: '', source }],
     }
-  }, [])
+    setList([defaultGroup])
+    setLoading(true)
 
-  useImperativeHandle(ref, () => ({
-    loadTag(source, id) {
-      if (id != activeId) setActiveId(id)
-      if (source != prevSource.current) {
-        setList([{ name: '', list: [{ name: t('songlist_tag_default'), id: '', parent_id: '', parent_name: '', source }] }])
-        void getTags(source).then(tagInfo => {
-          if (isUnmountedRef.current) return
-          prevSource.current = source
-          setList([
-            { name: '', list: [{ name: t('songlist_tag_default'), id: '', parent_id: '', parent_name: '', source }] },
-            { name: t('songlist_tag_hot'), list: [...tagInfo.hotTag] },
-            ...tagInfo.tags,
-          ].filter(t => t.list.length))
-        })
-      }
-    },
-  }))
+    void getTags(source).then(tagInfo => {
+      if (cancelled) return
+      prevSource.current = source
+      setList([
+        defaultGroup,
+        { name: t('songlist_tag_hot'), list: [...tagInfo.hotTag] },
+        ...tagInfo.tags,
+      ].filter(item => item.list.length))
+      setLoading(false)
+    }).catch(() => {
+      if (cancelled) return
+      setLoading(false)
+    })
 
+    return () => {
+      cancelled = true
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [source, t])
 
   return (
     <ScrollView style={{ flexShrink: 1, flexGrow: 0 }} keyboardShouldPersistTaps={'always'}>
@@ -66,7 +66,7 @@ export default forwardRef<ListType, ListProps>(({ onTagChange }, ref) => {
           ))
         }
         {
-          list.length == 1
+          loading
             ? (
                 <View style={styles.blankView}>
                   <Text>{t('list_loading')}</Text>
@@ -77,13 +77,14 @@ export default forwardRef<ListType, ListProps>(({ onTagChange }, ref) => {
       </View>
     </ScrollView>
   )
-})
+}
 
 
 const styles = createStyle({
   tagContainer: {
     paddingTop: 15,
     paddingLeft: 15,
+    paddingRight: 15,
     paddingBottom: 15,
   },
   blankView: {

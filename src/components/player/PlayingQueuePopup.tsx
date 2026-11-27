@@ -86,9 +86,21 @@ export default forwardRef<PlayingQueuePopupType, {}>((_props, ref) => {
     if (!currentListId) return global.i18n.t('list_name_temp')
     let name = ''
     switch (currentListId) {
-      case LIST_IDS.TEMP:
-        name = global.i18n.t('list_name_temp')
+      case LIST_IDS.TEMP: {
+        const tempMeta = listState.tempListMeta
+        if (tempMeta.name) {
+          name = tempMeta.name
+        } else if (tempMeta.id) {
+          const matchedUserList = listState.userList.find(l => (
+            l.sourceListId == tempMeta.id ||
+            (l.source && `${l.source}__${l.sourceListId}` == tempMeta.id)
+          ))
+          name = matchedUserList?.name ?? global.i18n.t('list_name_temp')
+        } else {
+          name = global.i18n.t('list_name_temp')
+        }
         break
+      }
       case LIST_IDS.DEFAULT:
         name = global.i18n.t('list_name_default')
         break
